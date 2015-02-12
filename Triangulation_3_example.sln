@@ -1,0 +1,34 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ALL_BUILD", "ALL_BUILD.vcxproj", "{B6C8AAFB-F31B-4111-A0C1-2A991B5DAD53}"
+	ProjectSection(ProjectDependencies) = postProject
+		{4B1FA363-3768-45B0-8082-05D62B3B2413} = {4B1FA363-3768-45B0-8082-05D62B3B2413}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fast_location_3", "fast_location_3.vcxproj", "{4B1FA363-3768-45B0-8082-05D62B3B2413}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		MinSizeRel|Win32 = MinSizeRel|Win32
+		Release|Win32 = Release|Win32
+		RelWithDebInfo|Win32 = RelWithDebInfo|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B6C8AAFB-F31B-4111-A0C1-2A991B5DAD53}.Debug|Win32.ActiveCfg = Debug|Win32
+		{B6C8AAFB-F31B-4111-A0C1-2A991B5DAD53}.MinSizeRel|Win32.ActiveCfg = MinSizeRel|Win32
+		{B6C8AAFB-F31B-4111-A0C1-2A991B5DAD53}.Release|Win32.ActiveCfg = Release|Win32
+		{B6C8AAFB-F31B-4111-A0C1-2A991B5DAD53}.RelWithDebInfo|Win32.ActiveCfg = RelWithDebInfo|Win32
+		{4B1FA363-3768-45B0-8082-05D62B3B2413}.Debug|Win32.ActiveCfg = Debug|Win32
+		{4B1FA363-3768-45B0-8082-05D62B3B2413}.Debug|Win32.Build.0 = Debug|Win32
+		{4B1FA363-3768-45B0-8082-05D62B3B2413}.MinSizeRel|Win32.ActiveCfg = MinSizeRel|Win32
+		{4B1FA363-3768-45B0-8082-05D62B3B2413}.MinSizeRel|Win32.Build.0 = MinSizeRel|Win32
+		{4B1FA363-3768-45B0-8082-05D62B3B2413}.Release|Win32.ActiveCfg = Release|Win32
+		{4B1FA363-3768-45B0-8082-05D62B3B2413}.Release|Win32.Build.0 = Release|Win32
+		{4B1FA363-3768-45B0-8082-05D62B3B2413}.RelWithDebInfo|Win32.ActiveCfg = RelWithDebInfo|Win32
+		{4B1FA363-3768-45B0-8082-05D62B3B2413}.RelWithDebInfo|Win32.Build.0 = RelWithDebInfo|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
