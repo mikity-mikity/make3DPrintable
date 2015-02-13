@@ -25,14 +25,14 @@ typedef struct
 	Vector minorRadius;
 	Vector Normal;
 }eclipse;
-struct face
+/*struct face
 {
 	int A,B,C;
 	bool operator==( const face& right ) const {
       return A == right.A&&B==right.B&&C==right.C ? true : false;
     }
 };
-
+*/
 typedef struct
 {
 	Vector a;
