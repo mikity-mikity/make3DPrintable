@@ -4,6 +4,9 @@
     <ClCompile Include="fast_location_3.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="GeometryProcessing.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="CMakeLists.txt" />
@@ -12,5 +15,10 @@
     <Filter Include="Source Files">
       <UniqueIdentifier>{EF989891-042C-4FF7-9E0C-576390FA00F0}</UniqueIdentifier>
     </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="GeometryProcessing.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

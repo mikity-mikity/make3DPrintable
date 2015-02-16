@@ -11,10 +11,8 @@
 #include <fstream>
 #include <boost/algorithm/string.hpp>
 #include<algorithm>	
+#include<Eigen/Dense>
 typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
-//typedef CGAL::Triangulation_3<K>      Delaunay;
-//typedef CGAL::Triangulation_vertex_base_with_info_3<unsigned,K>    Vb;
-//typedef CGAL::Triangulation_data_structure_3<Vb>                    Tds;
 typedef CGAL::Delaunay_triangulation_3<K,CGAL::Fast_location> Delaunay;
 typedef Delaunay::Point Point;
 typedef CGAL::Vector_3<K> Vector;
@@ -25,14 +23,6 @@ typedef struct
 	Vector minorRadius;
 	Vector Normal;
 }eclipse;
-/*struct face
-{
-	int A,B,C;
-	bool operator==( const face& right ) const {
-      return A == right.A&&B==right.B&&C==right.C ? true : false;
-    }
-};
-*/
 typedef struct
 {
 	Vector a;
