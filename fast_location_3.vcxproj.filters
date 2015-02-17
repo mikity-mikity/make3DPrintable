@@ -7,6 +7,15 @@
     <ClCompile Include="GeometryProcessing.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="vertex.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="halfedge.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="face.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="CMakeLists.txt" />
@@ -18,6 +27,15 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GeometryProcessing.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vertex.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="halfedge.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="face.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

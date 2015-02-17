@@ -1,7 +1,9 @@
 #include <vector>
 #include<Eigen/Dense>
 #include<Eigen/Sparse>
-
+#include"face.h"
+#include"halfedge.h"
+#include"vertex.h"
 using namespace std;
 using namespace Eigen;
 namespace GeometryProcessing
@@ -10,75 +12,37 @@ namespace GeometryProcessing
 	{
 	public:
 		int A,B,C;
+		MeshFace(int _A,int _B,int _C)
+		{
+			A=_A;
+			B=_B;
+			C=_C;
+		}
 	};
 	struct Point3d{
 	public:
 		double X,Y,Z;
+		Point3d()
+		{
+			X=0;
+			Y=0;
+			Z=0;
+		}
+		Point3d(double _x,double _y,double _z)
+		{
+			X=_x;
+			Y=_y;
+			Z=_z;
+		}
 	};
-	class Mesh
+
+	struct Mesh
 	{
 	public:
 		vector<MeshFace> Faces;
 		vector<Point3d> Vertices;
 	};
-	class vertex
-    {
-	public:
-		int N;
-        vector<halfedge*> star;
-        vector<halfedge*> onering;
-        halfedge* hf_begin;
-        halfedge* hf_end;
-        bool isNaked()
-        {
-            if(hf_begin == hf_end) return false;
-			return true;
-        }
-        vertex(int _N)
-        {
-            N = _N;
-        }
-        bool isInner()
-        {
-            return onering[0] == onering[onering.size() - 1]->next;
-        }
-        bool isBoundary()
-        {
-            return onering[0] != onering[onering.size() - 1]->next;
-        }
-    };
 
-    class halfedge
-    {
-	public:
-		vertex *P;
-        face *owner;
-        halfedge *pair, *next, *prev;
-        bool isNaked()
-        {
-            if(pair)return true;
-			return false;
-        }
-        halfedge(vertex *_P)
-        {
-            P = _P;
-            if (_P->hf_begin == NULL) _P->hf_begin = this;
-        }
-    };
-    class face
-    {
-	public:
-        int N;
-        int corner[3];
-        halfedge *firsthalfedge;
-		face(int _N, int A,int B,int C)
-        {
-            corner[0]=A;
-			corner[1]=B;
-			corner[2]=C;
-            N = _N;
-        }
-    };
 
     class MeshStructure
     {
@@ -133,16 +97,15 @@ namespace GeometryProcessing
         {
             this->Clear();
         }
-        void Construct(Mesh val)
+        void Construct(Mesh *val)
         {
-            int _nVertices = val.Vertices.size();
-            int _nFaces = val.Faces.size();
+            int _nVertices = val->Vertices.size();
+            int _nFaces = val->Faces.size();
 
             __orientation = new orient[_nFaces];
             _faceTable = SparseMatrix<vector<face*>*>(_nVertices, _nVertices);
             __halfedgeTable = SparseMatrix<halfedge*>(_nVertices, _nVertices);
-
-            for (int i = 0; i < _nFaces; i++)
+			for (int i = 0; i < _nFaces; i++)
             {
                 __orientation[i] = orient::unknown;
             }
@@ -155,7 +118,7 @@ namespace GeometryProcessing
 
             for (int i = 0; i < _nFaces; i++)
             {
-                auto f = val.Faces[i];
+                auto f = val->Faces[i];
                 auto _f = new face(i, f.A, f.B, f.C);
                 faces.push_back(_f);
                 faceTableAdd(_f);
@@ -371,9 +334,9 @@ namespace GeometryProcessing
 				}
 			}
 		public:
-			static MeshStructure* CreateFrom(Mesh val)
+			static MeshStructure* CreateFrom(Mesh *val)
 			{
-				MeshStructure* ret;
+				MeshStructure* ret=new MeshStructure();
 				ret->Construct(val);
 				return ret;
 			}
