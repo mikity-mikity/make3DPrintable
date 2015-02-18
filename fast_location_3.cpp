@@ -42,10 +42,10 @@ double PI=0.0;
 Eigen::VectorXd computeGradient(int numvar, MeshStructure* MS, vector<Point3d> nodes, Eigen::VectorXd x, Eigen::Vector3d* normalPerFaces)
 {
     Eigen::VectorXd grad = Eigen::VectorXd::Zero(numvar);
-    for (auto v : MS->vertices)
-    {
-		std::vector<vertex*>::iterator iter = std::find(MS->vertices.begin(), MS->vertices.end(), v);
-		int index = std::distance(MS->vertices.begin(), iter);
+	int index=0;
+	for(auto itr=MS->vertices.begin();itr!=MS->vertices.end();itr++,index++)
+	{
+		auto v=*itr;	
         for (auto e : v->onering)
         {
             auto N = normalPerFaces[e->owner->N];
@@ -64,39 +64,39 @@ Eigen::VectorXd computeGradient(int numvar, MeshStructure* MS, vector<Point3d> n
     }
     return grad;
 }
-Eigen::MatrixXd computeHessian(int numvar, MeshStructure* MS, vector<Point3d> nodes, Eigen::VectorXd x, Vector3d* normalPerFaces)
+Eigen::SparseMatrix<double> computeHessian(int numvar, MeshStructure* MS, vector<Point3d> nodes, Eigen::VectorXd x, Vector3d* normalPerFaces)
 {
-    Eigen::MatrixXd hess=Eigen::MatrixXd::Zero(numvar, numvar);
-    for (auto v : MS->vertices)
-    {
-		std::vector<vertex*>::iterator iter = std::find(MS->vertices.begin(), MS->vertices.end(), v);
-		int index = std::distance(MS->vertices.begin(), iter);
+    Eigen::SparseMatrix<double> hess(numvar, numvar);
+	int index=0;
+	for(auto itr=MS->vertices.begin();itr!=MS->vertices.end();itr++,index++)
+	{
+		auto v=*itr;	
         for (auto e : v->onering)
         {
             auto N = normalPerFaces[e->owner->N];
             auto cx = x(index * 3 + 0);
             auto cy = x(index * 3 + 1);
             auto cz = x(index * 3 + 2);
-            hess(index * 3 + 0, index * 3 + 0) += 2 * N.x() * N.x();
-            hess(index * 3 + 1, index * 3 + 0) += 2 * N.x() * N.y();
-            hess(index * 3 + 2, index * 3 + 0) += 2 * N.x() * N.z();
-            hess(index * 3 + 0, index * 3 + 1) += 2 * N.y() * N.x();
-            hess(index * 3 + 1, index * 3 + 1) += 2 * N.y() * N.y();
-            hess(index * 3 + 2, index * 3 + 1) += 2 * N.y() * N.z();
-            hess(index * 3 + 0, index * 3 + 2) += 2 * N.z() * N.x();
-            hess(index * 3 + 1, index * 3 + 2) += 2 * N.z() * N.y();
-            hess(index * 3 + 2, index * 3 + 2) += 2 * N.z() * N.z();
+            hess.coeffRef(index * 3 + 0, index * 3 + 0) += 2 * N.x() * N.x();
+            hess.coeffRef(index * 3 + 1, index * 3 + 0) += 2 * N.x() * N.y();
+            hess.coeffRef(index * 3 + 2, index * 3 + 0) += 2 * N.x() * N.z();
+            hess.coeffRef(index * 3 + 0, index * 3 + 1) += 2 * N.y() * N.x();
+            hess.coeffRef(index * 3 + 1, index * 3 + 1) += 2 * N.y() * N.y();
+            hess.coeffRef(index * 3 + 2, index * 3 + 1) += 2 * N.y() * N.z();
+            hess.coeffRef(index * 3 + 0, index * 3 + 2) += 2 * N.z() * N.x();
+            hess.coeffRef(index * 3 + 1, index * 3 + 2) += 2 * N.z() * N.y();
+            hess.coeffRef(index * 3 + 2, index * 3 + 2) += 2 * N.z() * N.z();
             double dot = cx * N.x() + cy * N.y() + cz * N.z();
 			double norm = N.x()*N.x()+N.y()*N.y()+N.z()*N.z();
-            hess(index * 3 + 0, index * 3 + 0) += (2 - 4 * N.x() * N.x() + norm * 2 * N.x() * N.x());
-            hess(index * 3 + 1, index * 3 + 0) += (-4 * N.y() * N.x() + norm * 2 * N.y() * N.x());
-            hess(index * 3 + 2, index * 3 + 0) += (-4 * N.z() * N.x() + norm * 2 * N.z() * N.x());
-            hess(index * 3 + 1, index * 3 + 1) += (2 - 4 * N.y() * N.y() + norm * 2 * N.y() * N.y());
-            hess(index * 3 + 2, index * 3 + 1) += (-4 * N.z() * N.y() + norm * 2 * N.z() * N.y());
-            hess(index * 3 + 0, index * 3 + 1) += (-4 * N.x() * N.y() + norm * 2 * N.x() * N.y());
-            hess(index * 3 + 2, index * 3 + 2) += (2 - 4 * N.z() * N.z() + norm * 2 * N.z() * N.z());
-            hess(index * 3 + 0, index * 3 + 2) += (-4 * N.x() * N.z() + norm * 2 * N.x() * N.z());
-            hess(index * 3 + 1, index * 3 + 2) += (-4 * N.y() * N.z() + norm * 2 * N.y() * N.z());
+            hess.coeffRef(index * 3 + 0, index * 3 + 0) += (2 - 4 * N.x() * N.x() + norm * 2 * N.x() * N.x());
+            hess.coeffRef(index * 3 + 1, index * 3 + 0) += (-4 * N.y() * N.x() + norm * 2 * N.y() * N.x());
+            hess.coeffRef(index * 3 + 2, index * 3 + 0) += (-4 * N.z() * N.x() + norm * 2 * N.z() * N.x());
+            hess.coeffRef(index * 3 + 1, index * 3 + 1) += (2 - 4 * N.y() * N.y() + norm * 2 * N.y() * N.y());
+            hess.coeffRef(index * 3 + 2, index * 3 + 1) += (-4 * N.z() * N.y() + norm * 2 * N.z() * N.y());
+            hess.coeffRef(index * 3 + 0, index * 3 + 1) += (-4 * N.x() * N.y() + norm * 2 * N.x() * N.y());
+            hess.coeffRef(index * 3 + 2, index * 3 + 2) += (2 - 4 * N.z() * N.z() + norm * 2 * N.z() * N.z());
+            hess.coeffRef(index * 3 + 0, index * 3 + 2) += (-4 * N.x() * N.z() + norm * 2 * N.x() * N.z());
+            hess.coeffRef(index * 3 + 1, index * 3 + 2) += (-4 * N.y() * N.z() + norm * 2 * N.y() * N.z());
         }
     }
     return hess;
@@ -105,11 +105,10 @@ Eigen::VectorXd computeResidual(int numvar, int numcon, MeshStructure* MS, vecto
 {
     Eigen::VectorXd res = Eigen::VectorXd::Zero(numcon);
     int conoffset = 0;
-    for (auto v : MS->vertices)
-    {
-		std::vector<vertex*>::iterator iter = std::find(MS->vertices.begin(), MS->vertices.end(), v);
-		int index = std::distance(MS->vertices.begin(), iter);
-        //det=0
+	int index=0;
+	for(auto itr=MS->vertices.begin();itr!=MS->vertices.end();itr++,index++)
+	{
+		auto v=*itr;	
         for (auto e : v->star)
         {
             if (e->P->N >= e->next->P->N) continue;
@@ -137,11 +136,10 @@ Eigen::MatrixXd computeJacob(int numvar, int numcon, MeshStructure* MS, vector<P
 {
     Eigen::MatrixXd jacob=Eigen::MatrixXd::Zero(numcon, numvar);
     int conoffset = 0;
-    for (auto v : MS->vertices)
-    {
-		std::vector<vertex*>::iterator iter = std::find(MS->vertices.begin(), MS->vertices.end(), v);
-		int index = std::distance(MS->vertices.begin(), iter);
-        //det=0
+	int index=0;
+	for(auto itr=MS->vertices.begin();itr!=MS->vertices.end();itr++,index++)
+	{
+		auto v=*itr;	
         for (auto e : v->star)
         {
             if (e->P->N >= e->next->P->N) continue;
@@ -171,11 +169,12 @@ Eigen::MatrixXd computeJacob(int numvar, int numcon, MeshStructure* MS, vector<P
     return jacob;
 }
 
-void computeNormal(boost::tuple<Mesh*,GeometryProcessing::MeshStructure* >input)
+boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>>> computeNormal(boost::tuple<double,Mesh*,GeometryProcessing::MeshStructure* >input)
 {
 	Mesh *myMesh;
 	GeometryProcessing::MeshStructure *MS;
-	boost::tie(myMesh,MS)=input;
+	double t;
+	boost::tie(t,myMesh,MS)=input;
     int numvar = MS->vertices.size()* 3;
 	int numcon=0;
     for (auto v : MS->vertices)
@@ -214,57 +213,55 @@ void computeNormal(boost::tuple<Mesh*,GeometryProcessing::MeshStructure* >input)
         x(index * 3 + 1) = N(1);
         x(index * 3 + 2) = N(2);
     }
-    vector<double> grads = vector<double>();
-    vector<double> residuals = vector<double>();
+	double tol=0.00000001;
     for (int i = 0; i < 10; i++)
     {
         Eigen::MatrixXd jacob = computeJacob(numvar, numcon, MS, nodes, x);
+		Eigen::MatrixXd S=jacob*jacob.transpose();
         Eigen::VectorXd res = computeResidual(numvar, numcon, MS, nodes, x);
-        Eigen::JacobiSVD<Eigen::MatrixXd> svd(jacob,Eigen::ComputeThinU|Eigen::ComputeThinV);
-		Eigen::VectorXd dx=svd.solve(-res);
+		Eigen::PartialPivLU<Eigen::MatrixXd> lu(S);
+		Eigen::VectorXd dx=jacob.transpose()*lu.solve(-res);
         x += dx;
 		cout<<res.norm()<<endl;
+		if(res.norm()<tol)break;
     }
     for (int i = 0; i < 100; i++)
     {
         Eigen::VectorXd grad = computeGradient(numvar, MS, nodes, x, normalPerFaces);
         Eigen::MatrixXd jacob = computeJacob(numvar, numcon, MS, nodes, x);
-        Eigen::FullPivHouseholderQR<Eigen::MatrixXd> qr(jacob*jacob.transpose());
-        Eigen::VectorXd lambda = qr.solve(-jacob*grad);
+        Eigen::MatrixXd S=jacob*(jacob.transpose());
+        Eigen::PartialPivLU<Eigen::MatrixXd> lu(S);
+		Eigen::VectorXd lambda = lu.solve(-jacob*grad);
         Eigen::VectorXd projGrad = grad + jacob.transpose()*lambda;
-        Eigen::MatrixXd hess = computeHessian(numvar, MS, nodes, x, normalPerFaces);
-		Eigen::PartialPivLU<MatrixXd> sol(hess);
+        SparseMatrix<double> hess = computeHessian(numvar, MS, nodes, x, normalPerFaces);
+		hess.makeCompressed();
+		Eigen::SparseLU<SparseMatrix<double>> sol(hess);
         Eigen::VectorXd dx = sol.solve(-projGrad);
-        grads.push_back(projGrad.norm());
-        //Eigen::VectorXd lambda2 = svd.solve(-dx);
-        //Eigen::VectorXd dx3=dx+jacob.transpose()*lambda2;
 		x += dx;
-        //x-=projGrad*0.1;
-		jacob = computeJacob(numvar, numcon, MS, nodes, x);
-        Eigen::VectorXd res = computeResidual(numvar, numcon, MS, nodes, x);
-        Eigen::JacobiSVD<Eigen::MatrixXd> svd2(jacob,Eigen::ComputeThinU|Eigen::ComputeThinV);
-		Eigen::VectorXd dx2=svd2.solve(-res);
-        x += dx2;
-		//residuals.push_back(res.norm());
+		Eigen::VectorXd res;
+		for (int i = 0; i < 10; i++)
+		{
+			jacob = computeJacob(numvar, numcon, MS, nodes, x);
+			S=jacob*jacob.transpose();
+			res = computeResidual(numvar, numcon, MS, nodes, x);
+			Eigen::PartialPivLU<Eigen::MatrixXd> lu(S);
+			Eigen::VectorXd dx=jacob.transpose()*lu.solve(-res);
+			x += dx;
+			if(res.norm()<tol)break;
+		}
 		cout<<projGrad.norm()<<","<<res.norm()<<endl;
-        //cout<<projGrad.norm()<<endl;
-        //if (projGrad.norm() < 0.000001 && res.norm() < 0.000001) break;
+        if (projGrad.norm() < tol && res.norm() < tol) break;
     }
-    /*inMesh = myMesh.DuplicateMesh();
-    outMesh = myMesh.DuplicateMesh();
-    listNormal = new List<Line>();
-    foreach (var v in MS.vertices)
-    {
-        int index=MS.vertices.IndexOf(v);
-        inMesh.Vertices[v.N] = new Point3f((float)(nodes[v.N].X + x[index * 3 + 0, 0] * thickness / 2d), (float)(nodes[v.N].Y + x[index * 3 + 1, 0] * thickness / 2d), (float)(nodes[v.N].Z + x[index * 3 + 2, 0] * thickness / 2d));
-        outMesh.Vertices[v.N] = new Point3f((float)(nodes[v.N].X - x[index * 3 + 0, 0] * thickness / 2d), (float)(nodes[v.N].Y - x[index * 3 + 1, 0] * thickness / 2d), (float)(nodes[v.N].Z - x[index * 3 + 2, 0] * thickness / 2d));
-        Vector3d N = new Vector3d();
-        N.X = x[index * 3 + 0, 0];
-        N.Y = x[index * 3 + 1, 0];
-        N.Z = x[index * 3 + 2, 0];
-        listNormal.Add(new Line(nodes[v.N], nodes[v.N] + N));
-    }*/
-	
+	std::map<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>> output;
+	int index=0;
+	for(auto itr=MS->vertices.begin();itr!=MS->vertices.end();itr++,index++)
+	{
+		auto v=*itr;	
+		Eigen::Vector3d P(nodes[v->N].X,nodes[v->N].Y,nodes[v->N].Z);
+        Eigen::Vector3d N(x[index * 3 + 0, 0],x[index * 3 + 1, 0],x[index * 3 + 2, 0]);
+        output.insert(std::pair<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>>(v,boost::make_tuple(P,N)));
+	}
+	return boost::make_tuple(t,MS,output);
 }
 boost::tuple<double,double> read(string filename,std::vector<Rad_branch> &data,std::vector<Thick_mesh> &mData)
 {
@@ -439,6 +436,9 @@ void generate_eclipseTree(std::vector<Rad_branch> &data,std::vector<eclipses*> &
 			_eclipses->push_back(newEclipse);
 		}
 	}
+}
+void generate_exterior2(boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>>>,double baseRes,std::vector<Point> &exterior)
+{
 }
 void generate_exterior(std::vector<Rad_branch> &data,std::vector<eclipses*> &eclipseTree,double baseRes,std::vector<Point> &exterior)
 {
@@ -744,7 +744,7 @@ int main(int argc, char *argv[])
 	boost::tie(minR,minT)=read(filename,data,mData);
 	if(minT<minR)minR=minT;
 	double baseRes=minR*2*PI/12.; 	  //basic resolution
-	std::vector<boost::tuple<Mesh*,GeometryProcessing::MeshStructure*>> meshStructures;
+	std::vector<boost::tuple<double,Mesh*,GeometryProcessing::MeshStructure*>> meshStructures;
 
 	for(auto tM:mData)
 	{
@@ -752,17 +752,22 @@ int main(int argc, char *argv[])
 		Mesh *m;
 		boost::tie(t,m)=tM;
 		GeometryProcessing::MeshStructure *MS=GeometryProcessing::MeshStructure::CreateFrom(m);
-		meshStructures.push_back(boost::make_tuple(m,MS));
+		meshStructures.push_back(boost::make_tuple(t,m,MS));
 	}
+	vector<boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>>>> mesh_infos;
 	for(auto MS:meshStructures)
 	{
-		computeNormal(MS);
+		mesh_infos.push_back(computeNormal(MS));
 	}
 	std::vector<Point> exterior;
 	std::vector<eclipses*> eclipseTree;
 	generate_eclipseTree(data,eclipseTree);
 
 	std::cout<<"construct exterior"<<endl;
+	for(auto tMS:mesh_infos)
+	{
+		generate_exterior2(tMS,baseRes,exterior);
+	}
 	generate_exterior(data,eclipseTree,baseRes,exterior);
 	std::cout<<"exterior.size()"<<exterior.size()<<endl;
 
