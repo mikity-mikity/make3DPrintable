@@ -2,9 +2,16 @@
 #include "vertex.h"
 namespace GeometryProcessing{
 
+    //Warning
+    //After boundary halfedges are appropriately setup, Naked halfedges should not exist.
 	bool halfedge::isNaked()
 	{
 		if(pair==NULL)return true;
+		return false;
+	}
+	bool halfedge::isBoundary()
+	{
+		if(owner==NULL)return true;
 		return false;
 	}
 	halfedge::halfedge(vertex *_P)

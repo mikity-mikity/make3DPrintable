@@ -55,7 +55,7 @@ namespace GeometryProcessing
         //to get boundary chain
         //boundaryStart->hf->next->P->hf->next->P->....
 	public:
-		vertex *boundaryStart;
+        halfedge *boundaryStart;
         vector<vertex*> vertices;
         vector<face*> faces;
         vector<halfedge*> halfedges;
@@ -72,15 +72,8 @@ namespace GeometryProcessing
             auto res = vector<halfedge*>();
             for (auto e : halfedges)
             {
-                if (e->isNaked())
-                {
+                if (e->P->N < e->next->P->N)
                     res.push_back(e);
-                }
-                else
-                {
-                    if (e->P->N < e->next->P->N)
-                        res.push_back(e);
-                }
             }
             return res;
         }
@@ -148,28 +141,77 @@ namespace GeometryProcessing
                 }
             }
             //post process to find boundary vertices
+
+			//align the first half edge at boundary
             for (auto v : vertices)
             {
                 auto h = v->hf_begin;
-                v->hf_end = h;
                 do
                 {
                     if (h->prev->isNaked())
                     {
-                        v->hf_end = h->prev;
                         while (!h->isNaked())
                         {
                             h = h->pair->next;
                         }
                         v->hf_begin = h;
-                        if (this->boundaryStart ==NULL) this->boundaryStart = v;
                         break;
                     }
                     h = h->prev->pair;
                 } while (h != v->hf_begin);
             }
 
-            //post process to create stars
+            vector<halfedge*> boundary_complement;
+            for (auto v : vertices)
+            {
+                auto h = v->hf_begin;
+                if (h->isNaked())//first naked halfedge found
+                {
+                    do
+                    {
+                        boundary_complement.push_back(h);
+                        h = h->next->P->hf_begin;
+                    } while (h != v->hf_begin);
+                    break;
+                }
+            }
+            //insert boundary halfedges
+            vector<halfedge*> boundary;
+            for (int i = 0; i < boundary_complement.size(); i++)
+            {
+                boundary.push_back(new halfedge(boundary_complement[i]->next->P));
+                boundary[i]->pair = boundary_complement[i];
+                boundary_complement[i]->pair = boundary[i];
+				halfedges.push_back(boundary[i]);
+            }
+            boundaryStart = boundary[0];
+            for (int i = 0; i < boundary.size(); i++)
+            {
+                boundary[i]->owner = NULL;
+                if (i!=0)
+                {
+                    boundary[i]->next = boundary_complement[i - 1]->pair;
+                }
+                else
+                {
+                    boundary[i]->next = boundary_complement[boundary_complement.size()-1]->pair;
+                }
+                if (i != boundary.size() - 1)
+                {
+                    boundary[i]->prev = boundary_complement[i + 1]->pair;
+                }
+                else
+                {
+                    boundary[i]->prev = boundary_complement[0]->pair;
+                }
+            }
+            //check if any naked halfedge survives
+            for (auto e : halfedges)
+            {
+                if (e->isNaked()) cout<<"naked halfedges survive!";
+            }
+
+			//post process to create stars
             for (auto v : vertices)
             {
                 auto h = v->hf_begin;
@@ -177,7 +219,7 @@ namespace GeometryProcessing
                 do
                 {
                     v->star.push_back(h);
-                    if (h->prev->isNaked()) break;
+                    if (h->isBoundary()) break;
                     h = h->prev->pair;
                 } while (h != v->hf_begin);
             }
@@ -193,7 +235,7 @@ namespace GeometryProcessing
                         h = h->next;
                         v->onering.push_back(h);
                     } while (h->next->next->P != v);
-                    if (h->next->isNaked()) break;
+                    if (h->next->pair->isBoundary()) break;
                     h = h->next->pair;
                 } while (h != v->hf_begin);
             }
@@ -202,7 +244,7 @@ namespace GeometryProcessing
             outerVertices.clear();
             for (auto v : vertices)
             {
-                if (v->hf_begin->isNaked()) outerVertices.push_back(v); else innerVertices.push_back(v);
+                if (v->hf_begin->pair->isBoundary()) outerVertices.push_back(v); else innerVertices.push_back(v);
             }
         }
 		private:

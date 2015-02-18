@@ -14,8 +14,6 @@ namespace GeometryProcessing
         vector<halfedge*> star;
         vector<halfedge*> onering;
         halfedge* hf_begin;
-        halfedge* hf_end;
-        bool isNaked();
         vertex(int _N);
         bool isInner();
         bool isBoundary();

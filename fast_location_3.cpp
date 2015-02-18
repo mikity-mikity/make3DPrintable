@@ -70,7 +70,7 @@ Eigen::SparseMatrix<double> computeHessian(int numvar, MeshStructure* MS, vector
 	int index=0;
 	for(auto itr=MS->vertices.begin();itr!=MS->vertices.end();itr++,index++)
 	{
-		auto v=*itr;	
+		auto v=*itr;
         for (auto e : v->onering)
         {
             auto N = normalPerFaces[e->owner->N];
@@ -214,7 +214,7 @@ boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::t
         x(index * 3 + 2) = N(2);
     }
 	double tol=0.00000001;
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 50; i++)
     {
         Eigen::MatrixXd jacob = computeJacob(numvar, numcon, MS, nodes, x);
 		Eigen::MatrixXd S=jacob*jacob.transpose();
@@ -225,7 +225,7 @@ boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::t
 		cout<<res.norm()<<endl;
 		if(res.norm()<tol)break;
     }
-    for (int i = 0; i < 100; i++)
+    for (int i = 0; i < 500; i++)
     {
         Eigen::VectorXd grad = computeGradient(numvar, MS, nodes, x, normalPerFaces);
         Eigen::MatrixXd jacob = computeJacob(numvar, numcon, MS, nodes, x);
@@ -239,7 +239,7 @@ boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::t
         Eigen::VectorXd dx = sol.solve(-projGrad);
 		x += dx;
 		Eigen::VectorXd res;
-		for (int i = 0; i < 10; i++)
+		for (int j = 0; j < 50; j++)
 		{
 			jacob = computeJacob(numvar, numcon, MS, nodes, x);
 			S=jacob*jacob.transpose();
@@ -258,7 +258,7 @@ boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::t
 	{
 		auto v=*itr;	
 		Eigen::Vector3d P(nodes[v->N].X,nodes[v->N].Y,nodes[v->N].Z);
-        Eigen::Vector3d N(x[index * 3 + 0, 0],x[index * 3 + 1, 0],x[index * 3 + 2, 0]);
+        Eigen::Vector3d N(x(index * 3 + 0),x(index * 3 + 1),x(index * 3 + 2));
         output.insert(std::pair<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>>(v,boost::make_tuple(P,N)));
 	}
 	return boost::make_tuple(t,MS,output);
@@ -437,17 +437,331 @@ void generate_eclipseTree(std::vector<Rad_branch> &data,std::vector<eclipses*> &
 		}
 	}
 }
-void generate_exterior2(boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>>>,double baseRes,std::vector<Point> &exterior)
+void generate_exterior2(boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>>> tMS,double baseRes,std::vector<Point> &exterior)
 {
+	double t;
+	GeometryProcessing::MeshStructure *MS;
+	std::map<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>> info;
+	boost::tie(t,MS,info)=tMS;
+	for(auto v:MS->vertices)
+	{
+		Eigen::Vector3d P,N; //Position,Normal
+		boost::tie(P,N)=info.find(v)->second;
+		int DIV=(int)(t/baseRes);
+		if(DIV<4)DIV=4;
+		for(int ss=0;ss<=DIV;ss++)
+		{
+			double sss=((double)ss)/((double)DIV);
+			Eigen::Vector3d Pc=P+(sss-0.5)*t*N;
+			exterior.push_back(Point(Pc.x(),Pc.y(),Pc.z()));
+		}
+	}
+	for(auto e:MS->edges())
+	{
+		Eigen::Vector3d P1,P2,N1,N2; //Position,Normal
+		boost::tie(P1,N1)=info.find(e->P)->second;
+		boost::tie(P2,N2)=info.find(e->next->P)->second;
+		Eigen::Vector3d P1in=P1-0.5*t*N1;
+		Eigen::Vector3d P2in=P2-0.5*t*N2;
+		double L=(P2in-P1in).norm();
+		int DIV=4;
+		if(L>baseRes*4.0)DIV=(int)(L/baseRes);
+		auto T=P2in-P1in;
+		for(int ss=1;ss<DIV;ss++)
+		{
+			double sss=((double)ss)/((double)DIV);
+			Eigen::Vector3d Pc=P1in+T*sss;
+			exterior.push_back(Point(Pc.x(),Pc.y(),Pc.z()));
+		}
+	}
+	for(auto e:MS->edges())
+	{
+		Eigen::Vector3d P1,P2,N1,N2; //Position,Normal
+		boost::tie(P1,N1)=info.find(e->P)->second;
+		boost::tie(P2,N2)=info.find(e->next->P)->second;
+		Eigen::Vector3d P1out=P1+0.5*t*N1;
+		Eigen::Vector3d P2out=P2+0.5*t*N2;
+		double L=(P2out-P1out).norm();
+		int DIV=4;
+		if(L>baseRes*4.0)DIV=(int)(L/baseRes);
+		auto T=P2out-P1out;
+		for(int ss=1;ss<DIV;ss++)
+		{
+			double sss=((double)ss)/((double)DIV);
+			Eigen::Vector3d Pc=P1out+T*sss;
+			exterior.push_back(Point(Pc.x(),Pc.y(),Pc.z()));
+		}
+	}
+	for(auto f:MS->faces)
+	{
+		Eigen::Vector3d P1,P2,P3,N1,N2,N3; //Position,Normal
+		boost::tie(P1,N1)=info.find(f->firsthalfedge->P)->second;
+		boost::tie(P2,N2)=info.find(f->firsthalfedge->next->P)->second;
+		boost::tie(P3,N3)=info.find(f->firsthalfedge->next->next->P)->second;
+		P1+=N1*t*0.5;
+		P2+=N2*t*0.5;
+		P3+=N3*t*0.5;
+		//choose longest
+		auto T12=P2-P1;
+		auto T23=P3-P2;
+		auto T31=P1-P3;
+		Eigen::Vector3d D,E;
+		Eigen::Vector3d P;
+		if(T12.norm()>T23.norm()&&T12.norm()>T31.norm())
+		{
+			D=T12;
+			E=T12.cross(T23).cross(T12);
+			E.normalize();
+			E*=T12.norm();
+			P=P1;
+		}
+		if(T23.norm()>T12.norm()&&T23.norm()>T31.norm())
+		{
+			D=T23;
+			E=T23.cross(T31).cross(T23);
+			E.normalize();
+			E*=T23.norm();
+			P=P2;
+		}
+		if(T31.norm()>T12.norm()&&T31.norm()>T23.norm())
+		{
+			D=T31;
+			E=T31.cross(T12).cross(T31);
+			E.normalize();
+			E*=T31.norm();
+			P=P3;
+		}
+		int DIV=4;
+		if(D.norm()>baseRes*4.0)DIV=(int)(D.norm()/baseRes);
+		for(int v=1;v<DIV;v++)
+		{
+			for(int u=1;u<DIV;u++)
+			{
+				double sv=((double)v)/((double)DIV);
+				double su=((double)u)/((double)DIV);
+				auto p=P+su*D+sv*E;
+				//judge if triangle contain p inside of itself.
+
+				auto p1=p-P1;
+				auto p2=p-P2;
+				auto p3=p-P3;
+				auto n1=p1.cross(T12);
+				auto n2=p2.cross(T23);
+				auto n3=p3.cross(T31);
+				int judge=0;
+				if(n1.dot(n2)>0&&n1.dot(n3)>0&&n2.dot(n3)>0)judge=1;
+				if(judge==1)
+				{
+					exterior.push_back(Point(p.x(),p.y(),p.z()));
+				}
+			}
+		}
+
+	}
+
+	for(auto f:MS->faces)
+	{
+		Eigen::Vector3d P1,P2,P3,N1,N2,N3; //Position,Normal
+		boost::tie(P1,N1)=info.find(f->firsthalfedge->P)->second;
+		boost::tie(P2,N2)=info.find(f->firsthalfedge->next->P)->second;
+		boost::tie(P3,N3)=info.find(f->firsthalfedge->next->next->P)->second;
+		P1-=N1*t*0.5;
+		P2-=N2*t*0.5;
+		P3-=N3*t*0.5;
+		//choose longest
+		auto T12=P2-P1;
+		auto T23=P3-P2;
+		auto T31=P1-P3;
+		Eigen::Vector3d D,E;
+		Eigen::Vector3d P;
+		if(T12.norm()>T23.norm()&&T12.norm()>T31.norm())
+		{
+			D=T12;
+			E=T12.cross(T23).cross(T12);
+			E.normalize();
+			E*=T12.norm();
+			P=P1;
+		}
+		if(T23.norm()>T12.norm()&&T23.norm()>T31.norm())
+		{
+			D=T23;
+			E=T23.cross(T31).cross(T23);
+			E.normalize();
+			E*=T23.norm();
+			P=P2;
+		}
+		if(T31.norm()>T12.norm()&&T31.norm()>T23.norm())
+		{
+			D=T31;
+			E=T31.cross(T12).cross(T31);
+			E.normalize();
+			E*=T31.norm();
+			P=P3;
+		}
+		int DIV=4;
+		if(D.norm()>baseRes*4.0)DIV=(int)(D.norm()/baseRes);
+		for(int v=1;v<DIV;v++)
+		{
+			for(int u=1;u<DIV;u++)
+			{
+				double sv=((double)v)/((double)DIV);
+				double su=((double)u)/((double)DIV);
+				auto p=P+su*D+sv*E;
+				//judge if triangle contain p inside of itself.
+
+				auto p1=p-P1;
+				auto p2=p-P2;
+				auto p3=p-P3;
+				auto n1=p1.cross(T12);
+				auto n2=p2.cross(T23);
+				auto n3=p3.cross(T31);
+				int judge=0;
+				if(n1.dot(n2)>0&&n1.dot(n3)>0&&n2.dot(n3)>0)judge=1;
+				if(judge==1)
+				{
+					exterior.push_back(Point(p.x(),p.y(),p.z()));
+				}
+			}
+		}
+
+	}
+	
+	auto e=MS->boundaryStart;
+	do{
+		if(!e->isBoundary())std::cout<<"error!"<<endl;
+		Eigen::Vector3d P1,P2,P3,N1,N2,N3; //Position,Normal
+		boost::tie(P1,N1)=info.find(e->P)->second;
+		boost::tie(P2,N2)=info.find(e->next->P)->second;
+		boost::tie(P3,N3)=info.find(e->P)->second;
+		P1+=N1*t*0.5;
+		P2+=N2*t*0.5;
+		P3-=N3*t*0.5;
+		//choose longest
+		Eigen::Vector3d T12=P2-P1;
+		Eigen::Vector3d T23=P3-P2;
+		Eigen::Vector3d T31=P1-P3;
+		Eigen::Vector3d D,E;
+		Eigen::Vector3d P;
+		if(T12.norm()>T23.norm()&&T12.norm()>T31.norm())
+		{
+			D=T12;
+			E=T12.cross(T23).cross(T12);
+			E.normalize();
+			E*=T12.norm();
+			P=P1;
+		}
+		if(T23.norm()>T12.norm()&&T23.norm()>T31.norm())
+		{
+			D=T23;
+			E=T23.cross(T31).cross(T23);
+			E.normalize();
+			E*=T23.norm();
+			P=P2;
+		}
+		if(T31.norm()>T12.norm()&&T31.norm()>T23.norm())
+		{
+			D=T31;
+			E=T31.cross(T12).cross(T31);
+			E.normalize();
+			E*=T31.norm();
+			P=P3;
+		}
+		int DIV=4;
+		if(D.norm()>baseRes*4.0)DIV=(int)(D.norm()/baseRes);
+		for(int v=1;v<DIV;v++)
+		{
+			for(int u=1;u<DIV;u++)
+			{
+				double sv=((double)v)/((double)DIV);
+				double su=((double)u)/((double)DIV);
+				auto p=P+su*D+sv*E;
+				//judge if triangle contain p inside of itself.
+
+				auto p1=p-P1;
+				auto p2=p-P2;
+				auto p3=p-P3;
+				auto n1=p1.cross(T12);
+				auto n2=p2.cross(T23);
+				auto n3=p3.cross(T31);
+				int judge=0;
+				if(n1.dot(n2)>0&&n1.dot(n3)>0&&n2.dot(n3)>0)judge=1;
+				if(judge==1)
+				{
+					exterior.push_back(Point(p.x(),p.y(),p.z()));
+				}
+			}
+		}
+		boost::tie(P1,N1)=info.find(e->P)->second;
+		boost::tie(P2,N2)=info.find(e->next->P)->second;
+		boost::tie(P3,N3)=info.find(e->next->P)->second;
+		P1-=N1*t*0.5;
+		P2-=N2*t*0.5;
+		P3+=N3*t*0.5;
+		//choose longest
+		T12=P2-P1;
+		T23=P3-P2;
+		T31=P1-P3;
+		if(T12.norm()>T23.norm()&&T12.norm()>T31.norm())
+		{
+			D=T12;
+			E=T12.cross(T23).cross(T12);
+			E.normalize();
+			E*=T12.norm();
+			P=P1;
+		}
+		if(T23.norm()>T12.norm()&&T23.norm()>T31.norm())
+		{
+			D=T23;
+			E=T23.cross(T31).cross(T23);
+			E.normalize();
+			E*=T23.norm();
+			P=P2;
+		}
+		if(T31.norm()>T12.norm()&&T31.norm()>T23.norm())
+		{
+			D=T31;
+			E=T31.cross(T12).cross(T31);
+			E.normalize();
+			E*=T31.norm();
+			P=P3;
+		}
+		DIV=4;
+		if(D.norm()>baseRes*4.0)DIV=(int)(D.norm()/baseRes);
+		for(int v=1;v<DIV;v++)
+		{
+			for(int u=1;u<DIV;u++)
+			{
+				double sv=((double)v)/((double)DIV);
+				double su=((double)u)/((double)DIV);
+				auto p=P+su*D+sv*E;
+				//judge if triangle contain p inside of itself.
+
+				auto p1=p-P1;
+				auto p2=p-P2;
+				auto p3=p-P3;
+				auto n1=p1.cross(T12);
+				auto n2=p2.cross(T23);
+				auto n3=p3.cross(T31);
+				int judge=0;
+				if(n1.dot(n2)>0&&n1.dot(n3)>0&&n2.dot(n3)>0)judge=1;
+				if(judge==1)
+				{
+					exterior.push_back(Point(p.x(),p.y(),p.z()));
+				}
+			}
+		}
+
+		e=e->next;
+	}while(e!=MS->boundaryStart);
+	
 }
 void generate_exterior(std::vector<Rad_branch> &data,std::vector<eclipses*> &eclipseTree,double baseRes,std::vector<Point> &exterior)
 {
 	vector<Rad_branch>::iterator itrA=data.begin();
 	vector<eclipses*>::iterator itrB=eclipseTree.begin();
 
-
 	int NN=(data.size()/20);
-	if(NN<1)NN=1;
+	if(NN<1)NN=1;	
 	int N=0;
 	while(itrA!=data.end())
 	{
@@ -742,8 +1056,8 @@ int main(int argc, char *argv[])
 	std::vector<Thick_mesh> mData;
 	double minR,minT;
 	boost::tie(minR,minT)=read(filename,data,mData);
-	if(minT<minR)minR=minT;
-	double baseRes=minR*2*PI/12.; 	  //basic resolution
+	double baseRes=std::min(minT/3.,minR*2*PI/12.);
+	cout<<"baseRes="<<baseRes<<endl;
 	std::vector<boost::tuple<double,Mesh*,GeometryProcessing::MeshStructure*>> meshStructures;
 
 	for(auto tM:mData)
@@ -1265,7 +1579,7 @@ int main(int argc, char *argv[])
 	N=0;
 	NN=T.number_of_finite_cells()/20;
 	if(NN==0)NN=1;
-	for(Delaunay::Finite_cells_iterator itr=T.finite_cells_begin();itr!=T.finite_cells_end();itr++,N++)
+	/*for(Delaunay::Finite_cells_iterator itr=T.finite_cells_begin();itr!=T.finite_cells_end();itr++,N++)
 	{
 		if(bool_list[N])
 		{
@@ -1279,6 +1593,10 @@ int main(int argc, char *argv[])
 			ofs3<<" , "<<PD.x()<<" , "<<PD.y()<<" , "<<PD.z()<<endl;
 		}
 		if(((int)N/NN)*NN==N)std::cout<<"*";
+	}*/
+	for(auto v :exterior)
+	{
+		ofs3<<v.x()<<" , "<<v.y()<<" , "<<v.z()<<endl;
 	}
 	std::cout<<endl;
 	N=0;

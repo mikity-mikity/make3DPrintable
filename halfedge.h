@@ -15,6 +15,7 @@ namespace GeometryProcessing
         face *owner;
         halfedge *pair, *next, *prev;
         bool isNaked();
+		bool isBoundary();
         halfedge(vertex *_P);
     };
 }
