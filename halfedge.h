@@ -16,7 +16,8 @@ namespace GeometryProcessing
         halfedge *pair, *next, *prev;
         bool isNaked();
 		bool isBoundary();
-        halfedge(vertex *_P);
+		bool ifPairIsBoundary();
+		halfedge(vertex *_P);
     };
 }
 #endif

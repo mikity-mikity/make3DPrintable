@@ -106,16 +106,8 @@ boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::t
 	GeometryProcessing::MeshStructure *MS;
 	double t;
 	boost::tie(t,myMesh,MS)=input;
-    int numvar = MS->vertices.size()* 3;
-	int numcon=0;
-    for (auto v : MS->vertices)
-    {
-        for (auto e :v->star)
-        {
-            if (e->P->N < e->next->P->N)
-                numcon++;
-        }
-    }
+    __int64 numvar = MS->vertices.size()* 3;
+	
     Eigen::VectorXd x = Eigen::MatrixXd::Zero(numvar, 1);
     vector<Point3d> nodes = myMesh->Vertices;
     Eigen::Vector3d *normalPerFaces = new Eigen::Vector3d[MS->nFaces()];
@@ -123,7 +115,7 @@ boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::t
     for (auto v : MS->vertices)
     {
 		std::vector<vertex*>::iterator iter = std::find(MS->vertices.begin(), MS->vertices.end(), v);
-		int index = std::distance(MS->vertices.begin(), iter);
+		__int64 index = std::distance(MS->vertices.begin(), iter);
 		
         Eigen::Vector3d N=Eigen::Vector3d(0,0,0);
         for (auto e : v->onering)
@@ -160,11 +152,7 @@ boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::t
             x(index * 3 + 1) += dx(1);
             x(index * 3 + 2) += dx(2);
 
-			if (grad.norm()< tol)
-			{
-				cout<<i<<endl;
-				break;
-			}
+			if (grad.norm()< tol)break;
 		}
 	}
 	std::map<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>> output;
@@ -362,131 +350,128 @@ void generate_exterior2(boost::tuple<double,GeometryProcessing::MeshStructure*,s
 	if(DIV<4)DIV=4;
 	for(auto v:MS->vertices)
 	{
-		if(v->isBoundary())
-		{
+		if(!v->isBoundary()){
 			Eigen::Vector3d P,N; //Position,Normal
 			boost::tie(P,N)=info.find(v)->second;
-			for(int ss=0;ss<=DIV;ss++)
+			for(double sss=-0.5;sss<=0.5;sss+=1.0)
 			{
-				double sss=((double)ss)/((double)DIV);
-				Eigen::Vector3d Pc=P+(sss-0.5)*t*N;
-				exterior.push_back(Point(Pc.x(),Pc.y(),Pc.z()));
-			}
-		}else
-		{
-			Eigen::Vector3d P,N; //Position,Normal
-			boost::tie(P,N)=info.find(v)->second;
-			for(int ss=0;ss<=DIV;ss+=DIV)
-			{
-				double sss=((double)ss)/((double)DIV);
-				Eigen::Vector3d Pc=P+(sss-0.5)*t*N;
+				Eigen::Vector3d Pc=P+sss*t*N;
 				exterior.push_back(Point(Pc.x(),Pc.y(),Pc.z()));
 			}
 		}
 	}
 	for(auto e:MS->edges())
 	{
-		Eigen::Vector3d P1,P2,N1,N2; //Position,Normal
-		boost::tie(P1,N1)=info.find(e->P)->second;
-		boost::tie(P2,N2)=info.find(e->next->P)->second;
-		Eigen::Vector3d P1in=P1-0.5*t*N1;
-		Eigen::Vector3d P2in=P2-0.5*t*N2;
-		double L=(P2in-P1in).norm();
-		int LDIV=4;
-		if(L>baseRes*4.0)LDIV=(int)(L/baseRes);
-		auto T=P2in-P1in;
-		for(int ss=1;ss<LDIV;ss++)
+		if((!e->isBoundary())&&(!e->ifPairIsBoundary()))
 		{
-			double sss=((double)ss)/((double)LDIV);
-			Eigen::Vector3d Pc=P1in+T*sss;
-			exterior.push_back(Point(Pc.x(),Pc.y(),Pc.z()));
+			Eigen::Vector3d P1,P2,N1,N2; //Position,Normal
+			boost::tie(P1,N1)=info.find(e->P)->second;
+			boost::tie(P2,N2)=info.find(e->next->P)->second;
+			Eigen::Vector3d P1in=P1-0.5*t*N1;
+			Eigen::Vector3d P2in=P2-0.5*t*N2;
+			double L=(P2in-P1in).norm();
+			int LDIV=4;
+			if(L>baseRes*4.0)LDIV=(int)(L/baseRes);
+			auto T=P2in-P1in;
+			for(int ss=1;ss<LDIV;ss++)
+			{
+				double sss=((double)ss)/((double)LDIV);
+				Eigen::Vector3d Pc=P1in+T*sss;
+				exterior.push_back(Point(Pc.x(),Pc.y(),Pc.z()));
+			}
 		}
 	}
 	for(auto e:MS->edges())
 	{
-		Eigen::Vector3d P1,P2,N1,N2; //Position,Normal
-		boost::tie(P1,N1)=info.find(e->P)->second;
-		boost::tie(P2,N2)=info.find(e->next->P)->second;
-		Eigen::Vector3d P1out=P1+0.5*t*N1;
-		Eigen::Vector3d P2out=P2+0.5*t*N2;
-		double L=(P2out-P1out).norm();
-		int LDIV=4;
-		if(L>baseRes*4.0)LDIV=(int)(L/baseRes);
-		auto T=P2out-P1out;
-		for(int ss=1;ss<LDIV;ss++)
+		if((!e->isBoundary())&&(!e->ifPairIsBoundary()))
 		{
-			double sss=((double)ss)/((double)LDIV);
-			Eigen::Vector3d Pc=P1out+T*sss;
-			exterior.push_back(Point(Pc.x(),Pc.y(),Pc.z()));
+			Eigen::Vector3d P1,P2,N1,N2; //Position,Normal
+			boost::tie(P1,N1)=info.find(e->P)->second;
+			boost::tie(P2,N2)=info.find(e->next->P)->second;
+			Eigen::Vector3d P1out=P1+0.5*t*N1;
+			Eigen::Vector3d P2out=P2+0.5*t*N2;
+			double L=(P2out-P1out).norm();
+			int LDIV=4;
+			if(L>baseRes*4.0)LDIV=(int)(L/baseRes);
+			auto T=P2out-P1out;
+			for(int ss=1;ss<LDIV;ss++)
+			{
+				double sss=((double)ss)/((double)LDIV);
+				Eigen::Vector3d Pc=P1out+T*sss;
+				exterior.push_back(Point(Pc.x(),Pc.y(),Pc.z()));
+			}
 		}
 	}
+	double tt[5]={-0.5,-0.4,0.0,0.4,0.5};
 	for(auto f:MS->faces)
 	{
 		Eigen::Vector3d P1,P2,P3,N1,N2,N3; //Position,Normal
+		for(int i=0;i<5;i++)
+		{
 		boost::tie(P1,N1)=info.find(f->firsthalfedge->P)->second;
 		boost::tie(P2,N2)=info.find(f->firsthalfedge->next->P)->second;
 		boost::tie(P3,N3)=info.find(f->firsthalfedge->next->next->P)->second;
-		P1+=N1*t*0.5;
-		P2+=N2*t*0.5;
-		P3+=N3*t*0.5;
-		//choose longest
-		auto T12=P2-P1;
-		auto T23=P3-P2;
-		auto T31=P1-P3;
-		Eigen::Vector3d D,E;
-		Eigen::Vector3d P;
-		if(T12.norm()>T23.norm()&&T12.norm()>T31.norm())
-		{
-			D=T12;
-			E=T12.cross(T23).cross(T12);
-			E.normalize();
-			E*=T12.norm();
-			P=P1;
-		}
-		if(T23.norm()>T12.norm()&&T23.norm()>T31.norm())
-		{
-			D=T23;
-			E=T23.cross(T31).cross(T23);
-			E.normalize();
-			E*=T23.norm();
-			P=P2;
-		}
-		if(T31.norm()>T12.norm()&&T31.norm()>T23.norm())
-		{
-			D=T31;
-			E=T31.cross(T12).cross(T31);
-			E.normalize();
-			E*=T31.norm();
-			P=P3;
-		}
-		int LDIV=4;
-		if(D.norm()>baseRes*4.0)LDIV=(int)(D.norm()/baseRes);
-		for(int v=1;v<LDIV;v++)
-		{
-			for(int u=1;u<LDIV;u++)
+			P1+=N1*t*tt[i];
+			P2+=N2*t*tt[i];
+			P3+=N3*t*tt[i];
+			//choose longest
+			auto T12=P2-P1;
+			auto T23=P3-P2;
+			auto T31=P1-P3;
+			Eigen::Vector3d D,E;
+			Eigen::Vector3d P;
+			if(T12.norm()>T23.norm()&&T12.norm()>T31.norm())
 			{
-				double sv=((double)v)/((double)LDIV);
-				double su=((double)u)/((double)LDIV);
-				auto p=P+su*D+sv*E;
-				//judge if triangle contain p inside of itself.
-
-				auto p1=p-P1;
-				auto p2=p-P2;
-				auto p3=p-P3;
-				auto n1=p1.cross(T12);
-				auto n2=p2.cross(T23);
-				auto n3=p3.cross(T31);
-				int judge=0;
-				if(n1.dot(n2)>0&&n1.dot(n3)>0&&n2.dot(n3)>0)judge=1;
-				if(judge==1)
+				D=T12;
+				E=T12.cross(T23).cross(T12);
+				E.normalize();
+				E*=T12.norm();
+				P=P1;
+			}
+			if(T23.norm()>T12.norm()&&T23.norm()>T31.norm())
+			{
+				D=T23;
+				E=T23.cross(T31).cross(T23);
+				E.normalize();
+				E*=T23.norm();
+				P=P2;
+			}
+			if(T31.norm()>T12.norm()&&T31.norm()>T23.norm())
+			{
+				D=T31;
+				E=T31.cross(T12).cross(T31);
+				E.normalize();
+				E*=T31.norm();
+				P=P3;
+			}
+			int LDIV=2;
+			if(D.norm()>baseRes*2.0)LDIV=(int)(D.norm()/baseRes);
+			for(int v=1;v<LDIV;v++)
+			{
+				for(int u=1;u<LDIV;u++)
 				{
-					exterior.push_back(Point(p.x(),p.y(),p.z()));
+					double sv=((double)v)/((double)LDIV);
+					double su=((double)u)/((double)LDIV);
+					auto p=P+su*D+sv*E;
+					//judge if triangle contain p inside of itself.
+
+					auto p1=p-P1;
+					auto p2=p-P2;
+					auto p3=p-P3;
+					auto n1=p1.cross(T12);
+					auto n2=p2.cross(T23);
+					auto n3=p3.cross(T31);
+					int judge=0;
+					if(n1.dot(n2)>0&&n1.dot(n3)>0&&n2.dot(n3)>0)judge=1;
+					if(judge==1)
+					{
+						exterior.push_back(Point(p.x(),p.y(),p.z()));
+					}
 				}
 			}
 		}
-
 	}
-
+	/*
 	for(auto f:MS->faces)
 	{
 		Eigen::Vector3d P1,P2,P3,N1,N2,N3; //Position,Normal
@@ -552,133 +537,40 @@ void generate_exterior2(boost::tuple<double,GeometryProcessing::MeshStructure*,s
 			}
 		}
 
-	}
+	}*/
 	
 	auto e=MS->boundaryStart;
 	do{
 		if(!e->isBoundary())std::cout<<"error!"<<endl;
-		Eigen::Vector3d P1,P2,P3,N1,N2,N3; //Position,Normal
-		boost::tie(P1,N1)=info.find(e->P)->second;
-		boost::tie(P2,N2)=info.find(e->next->P)->second;
-		boost::tie(P3,N3)=info.find(e->P)->second;
-		P1+=N1*t*0.5;
-		P2+=N2*t*0.5;
-		P3-=N3*t*0.5;
+		Eigen::Vector3d P,Q,Pin,Qin,Pout,Qout,Pt,Qt,PQ,p,N1,N2; //Position,Normal
+		boost::tie(P,N1)=info.find(e->P)->second;
+		boost::tie(Q,N2)=info.find(e->next->P)->second;
+		Pin=P+N1*t*0.5;
+		Qin=Q+N2*t*0.5;
+		Pout=P-N1*t*0.5;
+		Qout=Q-N2*t*0.5;
 		//choose longest
-		Eigen::Vector3d T12=P2-P1;
-		Eigen::Vector3d T23=P3-P2;
-		Eigen::Vector3d T31=P1-P3;
-		Eigen::Vector3d D,E;
-		Eigen::Vector3d P;
-		if(T12.norm()>T23.norm()&&T12.norm()>T31.norm())
+		Eigen::Vector3d PQin=Qin-Pin;
+		Eigen::Vector3d PQout=Qout-Pout;
+		double uL=std::max(PQin.norm(),PQout.norm());
+		double vL=std::max(N1.norm(),N2.norm());
+		int UDIV=(int)(uL/baseRes);
+		int VDIV=(int)(vL/baseRes);
+		if(UDIV<2)UDIV=2;
+		if(VDIV<4)VDIV=4;
+		for(int vs=0;vs<=VDIV;vs++)
 		{
-			D=T12;
-			E=T12.cross(T23).cross(T12);
-			E.normalize();
-			E*=T12.norm();
-			P=P1;
-		}
-		if(T23.norm()>T12.norm()&&T23.norm()>T31.norm())
-		{
-			D=T23;
-			E=T23.cross(T31).cross(T23);
-			E.normalize();
-			E*=T23.norm();
-			P=P2;
-		}
-		if(T31.norm()>T12.norm()&&T31.norm()>T23.norm())
-		{
-			D=T31;
-			E=T31.cross(T12).cross(T31);
-			E.normalize();
-			E*=T31.norm();
-			P=P3;
-		}
-		int LDIV=4;
-		if(D.norm()>baseRes*4.0)LDIV=(int)(D.norm()/baseRes);
-		for(int v=1;v<LDIV;v++)
-		{
-			for(int u=1;u<LDIV;u++)
+			double vss=((double)vs)/((double)VDIV);
+			Pt=P+N1*t*(vss-0.5);
+			Qt=Q+N2*t*(vss-0.5);
+			PQ=Qt-Pt;
+			for(int us=0;us<UDIV;us++)
 			{
-				double sv=((double)v)/((double)LDIV);
-				double su=((double)u)/((double)LDIV);
-				auto p=P+su*D+sv*E;
-				//judge if triangle contain p inside of itself.
-
-				auto p1=p-P1;
-				auto p2=p-P2;
-				auto p3=p-P3;
-				auto n1=p1.cross(T12);
-				auto n2=p2.cross(T23);
-				auto n3=p3.cross(T31);
-				int judge=0;
-				if(n1.dot(n2)>0&&n1.dot(n3)>0&&n2.dot(n3)>0)judge=1;
-				if(judge==1)
-				{
-					exterior.push_back(Point(p.x(),p.y(),p.z()));
-				}
+				double uss=((double)us)/((double)UDIV);
+				p=Pt+PQ*uss;
+				exterior.push_back(Point(p.x(),p.y(),p.z()));
 			}
 		}
-		boost::tie(P1,N1)=info.find(e->P)->second;
-		boost::tie(P2,N2)=info.find(e->next->P)->second;
-		boost::tie(P3,N3)=info.find(e->next->P)->second;
-		P1-=N1*t*0.5;
-		P2-=N2*t*0.5;
-		P3+=N3*t*0.5;
-		//choose longest
-		T12=P2-P1;
-		T23=P3-P2;
-		T31=P1-P3;
-		if(T12.norm()>T23.norm()&&T12.norm()>T31.norm())
-		{
-			D=T12;
-			E=T12.cross(T23).cross(T12);
-			E.normalize();
-			E*=T12.norm();
-			P=P1;
-		}
-		if(T23.norm()>T12.norm()&&T23.norm()>T31.norm())
-		{
-			D=T23;
-			E=T23.cross(T31).cross(T23);
-			E.normalize();
-			E*=T23.norm();
-			P=P2;
-		}
-		if(T31.norm()>T12.norm()&&T31.norm()>T23.norm())
-		{
-			D=T31;
-			E=T31.cross(T12).cross(T31);
-			E.normalize();
-			E*=T31.norm();
-			P=P3;
-		}
-		LDIV=4;
-		if(D.norm()>baseRes*4.0)LDIV=(int)(D.norm()/baseRes);
-		for(int v=1;v<LDIV;v++)
-		{
-			for(int u=1;u<LDIV;u++)
-			{
-				double sv=((double)v)/((double)LDIV);
-				double su=((double)u)/((double)LDIV);
-				auto p=P+su*D+sv*E;
-				//judge if triangle contain p inside of itself.
-
-				auto p1=p-P1;
-				auto p2=p-P2;
-				auto p3=p-P3;
-				auto n1=p1.cross(T12);
-				auto n2=p2.cross(T23);
-				auto n3=p3.cross(T31);
-				int judge=0;
-				if(n1.dot(n2)>0&&n1.dot(n3)>0&&n2.dot(n3)>0)judge=1;
-				if(judge==1)
-				{
-					exterior.push_back(Point(p.x(),p.y(),p.z()));
-				}
-			}
-		}
-
 		e=e->next;
 	}while(e!=MS->boundaryStart);
 	
@@ -688,7 +580,7 @@ void generate_exterior(std::vector<Rad_branch> &data,std::vector<eclipses*> &ecl
 	vector<Rad_branch>::iterator itrA=data.begin();
 	vector<eclipses*>::iterator itrB=eclipseTree.begin();
 
-	int NN=(data.size()/20);
+	__int64 NN=(data.size()/20);
 	if(NN<1)NN=1;	
 	int N=0;
 	while(itrA!=data.end())
@@ -829,19 +721,19 @@ void triangulate(Delaunay &T,std::vector<Point> &exterior)
 	}
 
 }
-void asign_index_to_cells(std::map<Delaunay::Cell_handle,int> &index,Delaunay &T)
+void asign_index_to_cells(std::map<Delaunay::Cell_handle,__int64> &index,Delaunay &T)
 {
-	int N=0;
+	__int64 N=0;
 	for(Delaunay::Finite_cells_iterator itr=T.finite_cells_begin();itr!=T.finite_cells_end();itr++)
 	{
-		index.insert(pair<const Delaunay::Finite_cells_iterator,int>(itr,N));
+		index.insert(pair<const Delaunay::Finite_cells_iterator,__int64>(itr,N));
 		N++;
 	}
 }
-void init_cells(Delaunay &T,int* cells)
+void init_cells(Delaunay &T,__int64* cells)
 {
-	int S=T.number_of_finite_cells();
-	int* ptr1=cells;
+	__int64 S=T.number_of_finite_cells();
+	__int64* ptr1=cells;
 	for(int i=0;i<S;i++)
 	{
 		*ptr1=0;
@@ -850,8 +742,8 @@ void init_cells(Delaunay &T,int* cells)
 }
 typedef struct
 {
-	int numInterior;
-	int next;
+	__int64 numInterior;
+	__int64 next;
 	int DIV;
 	Vector beforeX;
 	Vector beforeY;
@@ -865,12 +757,12 @@ typedef struct
 }info;
 typedef struct
 {
-	int numInterior;
-	int next;
+	__int64 numInterior;
+	__int64 next;
 	Cell_handle before;
 	Point p;
 }info2;
-int computeInterior2(vector<boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>>>> mesh_infos,double baseRes,std::function<void(info2&)>func)
+__int64 computeInterior2(vector<boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>>>> mesh_infos,double baseRes,std::function<void(info2&)>func)
 {
 	info2 myInfo;
 	myInfo.numInterior=0;
@@ -883,19 +775,19 @@ int computeInterior2(vector<boost::tuple<double,GeometryProcessing::MeshStructur
 		boost::tie(t,MS,info)=tMS;
 		int TDIV=4;
 		if(t>baseRes*4.0)TDIV=(int)(t/baseRes);
-		TDIV*=4;
+		TDIV*=5;
 		for(auto f:MS->faces)
 		{
 			Eigen::Vector3d P1,P2,P3,N1,N2,N3; //Position,Normal
 			boost::tie(P1,N1)=info.find(f->firsthalfedge->P)->second;
 			boost::tie(P2,N2)=info.find(f->firsthalfedge->next->P)->second;
 			boost::tie(P3,N3)=info.find(f->firsthalfedge->next->next->P)->second;
-			for(int ss=1;ss<TDIV;ss++)
+			for(int ss=0;ss<=TDIV;ss++)
 			{
-				double sss=((double)ss)/((double)TDIV)-0.5;
-				auto _P1=P1+N1*t*sss;
-				auto _P2=P2+N2*t*sss;
-				auto _P3=P3+N3*t*sss;
+				double sss=(((double)ss))/((double)TDIV)-0.5;
+				auto _P1=P1+N1*t*sss*0.99;
+				auto _P2=P2+N2*t*sss*0.99;
+				auto _P3=P3+N3*t*sss*0.99;
 				//choose longest
 				auto T12=_P2-_P1;
 				auto T23=_P3-_P2;
@@ -929,15 +821,15 @@ int computeInterior2(vector<boost::tuple<double,GeometryProcessing::MeshStructur
 					E*=T31.norm();
 					P=_P3;
 				}
-				int DIV=4;
-				if(D.norm()>baseRes*4.0)DIV=(int)(D.norm()/baseRes);
+				int DIV=2;
+				if(D.norm()>baseRes*2.0)DIV=(int)(D.norm()/baseRes);
 				DIV*=8;
-				for(int v=1;v<DIV;v++)
+				for(int v=1;v<=DIV;v++)
 				{
-					for(int u=1;u<DIV;u++)
+					for(int u=1;u<=DIV;u++)
 					{
-						double sv=((double)v)/((double)DIV);
-						double su=((double)u)/((double)DIV);
+						double sv=(((double)v)-0.5)/((double)DIV);
+						double su=(((double)u)-0.5)/((double)DIV);
 						auto p=P+su*D+sv*E;
 						//judge if triangle contain p inside of itself.
 
@@ -961,7 +853,7 @@ int computeInterior2(vector<boost::tuple<double,GeometryProcessing::MeshStructur
 	}
 	return myInfo.numInterior;
 }
-int computeInterior(std::vector<Rad_branch> &data,std::vector<eclipses*> &eclipseTree,double baseRes,std::function<void(info&)>func)
+__int64 computeInterior(std::vector<Rad_branch> &data,std::vector<eclipses*> &eclipseTree,double baseRes,std::function<void(info&)>func)
 {
 	info myInfo;
 	myInfo.numInterior=0;
@@ -1119,14 +1011,14 @@ int main(int argc, char *argv[])
 	std::cout<<"end triangulation"<<endl;
 	std::cout<<"T.number_of_vertices:"<<T.number_of_vertices()<<endl;
 	std::cout<<"number_of_finite_cells:"<<T.number_of_finite_cells()<<endl;
-	std::map<Delaunay::Cell_handle,int> index;
+	std::map<Delaunay::Cell_handle,__int64> index;
 	std::cout<<"create index"<<endl;
 	asign_index_to_cells(index,T);
 	std::cout<<"start cell search"<<endl;
 
 	
 
-	int* cells=new int[T.number_of_finite_cells()];
+	__int64* cells=new __int64[T.number_of_finite_cells()];
 	
 	std::cout<<"initialize cells"<<endl;
 	init_cells(T,cells);
@@ -1134,9 +1026,9 @@ int main(int argc, char *argv[])
 	
 	
 	//compute total number of interior points
-	int size2=0;
+	__int64 size2=0;
 
-	int size=computeInterior(data,eclipseTree,baseRes,[](info& myInfo){
+	__int64 size=computeInterior(data,eclipseTree,baseRes,[](info& myInfo){
 		for(double ss=0.5;ss<myInfo.DIV;ss++)
 			{
 				for(auto particle=myInfo.particles.begin();particle!=myInfo.particles.end();particle++)
@@ -1170,8 +1062,8 @@ int main(int argc, char *argv[])
 			c=T.locate(myInfo.p,lt,li,lj,myInfo.before);
 		if(lt==Locate_type::CELL)
 		{
-				std::map<Delaunay::Cell_handle,int>::iterator it_c=index.find(c);
-				int d=it_c->second;
+				std::map<Delaunay::Cell_handle,__int64>::iterator it_c=index.find(c);
+				__int64 d=it_c->second;
 				cells[d]++;
 				myInfo.before=c;
 		}
@@ -1251,8 +1143,8 @@ int main(int argc, char *argv[])
 					
 					if(lt==Locate_type::CELL)
 					{
-							std::map<Delaunay::Cell_handle,int>::iterator it_c=index.find(c);
-							int d=it_c->second;
+							std::map<Delaunay::Cell_handle,__int64>::iterator it_c=index.find(c);
+							__int64 d=it_c->second;
 							cells[d]++;
 							myInfo.before=c;
 					}
@@ -1270,7 +1162,7 @@ int main(int argc, char *argv[])
 	});
 
 	std::cout<<"start cell locate"<<endl;	
-	int N=0;
+	__int64 N=0;
 
 	std::cout<<endl;
 	
@@ -1280,7 +1172,7 @@ int main(int argc, char *argv[])
 
 	N=0;
 	double D=0.4;
-	int count=0;
+	__int64 count=0;
 	for(Delaunay::Finite_cells_iterator itr=T.finite_cells_begin();itr!=T.finite_cells_end();itr++,N++)
 	{
 		bool_list[N]=true;
@@ -1292,11 +1184,11 @@ int main(int argc, char *argv[])
 	//while(everything>0){
 	//everything=0;
 	std::cout<<"erase bubbles"<<endl;
-	std::map<Cell_handle,int> _cells; 
+	std::map<Cell_handle,__int64> _cells; 
 	std::list<Cell_handle> cells1; 
 	std::list<Cell_handle> cells2; 
 	std::vector<std::list<Cell_handle>> cell_group;
-	int totalCount=0;
+	__int64 totalCount=0;
 	N=0;
 	for(auto itr=T.finite_cells_begin();itr!=T.finite_cells_end();itr++)
 	{
@@ -1307,7 +1199,7 @@ int main(int argc, char *argv[])
 			N++;
 		}
 	}
-	int NN=totalCount/20;
+	__int64 NN=totalCount/20;
 	if(NN=0)NN=1;
 	cells2.push_back(_cells.begin()->first);
 	_cells.erase(_cells.begin()->first);
@@ -1325,13 +1217,13 @@ int main(int argc, char *argv[])
 					for(int i=0;i<4;i++)
 					{
 						Cell_handle nei=(*itr)->neighbor(i);
-						std::map<Cell_handle,int>::iterator it=_cells.find(nei);
+						std::map<Cell_handle,__int64>::iterator it=_cells.find(nei);
 						if(it!=_cells.end())
 						{
 							cells1.push_back(nei);
 							_cells.erase(nei);
 							N++;
-							if(((int)N/NN)*NN==N)std::cout<<"*";
+							if(((__int64)N/NN)*NN==N)std::cout<<"*";
 						}
 					}
 				}
@@ -1410,10 +1302,10 @@ int main(int argc, char *argv[])
 			if(_cells.empty())continue;
 			for(auto itr=_cells.begin();itr!=_cells.end();itr++)
 			{
-				map<Cell_handle,int>::iterator itr2=index.find(*itr);
+				map<Cell_handle,__int64>::iterator itr2=index.find(*itr);
 				if(itr2!=index.end())
 				{
-					int N=itr2->second;
+					__int64 N=itr2->second;
 					if(bool_list[N])
 					{
 						cells.push_back(*itr);
@@ -1453,7 +1345,7 @@ int main(int argc, char *argv[])
 				if(cells.size()<cells2.size()) toErase=cells; else toErase=cells2;
 				for(auto itr=toErase.begin();itr!=toErase.end();itr++)
 				{
-					int N=index.find(*itr)->second;
+					__int64 N=index.find(*itr)->second;
 					bool_list[N]=false;
 					//everything++;
 					totalCount++;
@@ -1481,7 +1373,7 @@ int main(int argc, char *argv[])
 			std::list<Cell_handle> cells3; 
 			Delaunay::Cell_circulator circle=T.incident_cells(*itr); 
 			Delaunay::Cell_circulator begin=circle;
-			std::map<Cell_handle,int>::iterator it=index.find(circle);
+			std::map<Cell_handle,__int64>::iterator it=index.find(circle);
 			if(it==index.end())continue;
 			bool flag=bool_list[it->second];
 			int counter=0;
@@ -1509,11 +1401,11 @@ int main(int argc, char *argv[])
 			}
 			if(counter==4)
 			{
-				std::vector<int> len;
+				std::vector<__int64> len;
 				for(int i=0;i<2;i++)
 				{
 					Delaunay::Cell_circulator s=start[i];
-					int L=0;
+				    __int64 L=0;
 					while(true)
 					{
 						circle++;
@@ -1556,7 +1448,7 @@ int main(int argc, char *argv[])
 	}
 	
 	std::cout<<"push and pop"<<endl;
-	int TT=0;
+	__int64 TT=0;
 	while(true)
 	{
 		int num=0;
@@ -1569,7 +1461,7 @@ int main(int argc, char *argv[])
 				for(int i=0;i<4;i++)
 				{
 					Delaunay::Cell_handle _neighbor=itr->neighbor(i);
-					std::map<Delaunay::Cell_handle,int>::iterator it_N=index.find(_neighbor);
+					std::map<Delaunay::Cell_handle,__int64>::iterator it_N=index.find(_neighbor);
 					if(it_N!=index.end())
 					{
 						if(bool_list[it_N->second])count++;
@@ -1603,13 +1495,13 @@ int main(int argc, char *argv[])
 			{
 				Delaunay::Cell_handle nei=itr->neighbor(i);
 				
-				std::map<Delaunay::Cell_handle,int>::iterator itr_c=index.find(nei);
+				std::map<Delaunay::Cell_handle,__int64>::iterator itr_c=index.find(nei);
 				if(itr_c==index.end())
 				{
 					facet_list.push_back(Delaunay::Facet(itr,i));
 				}else
 				{
-					int N2=itr_c->second;
+					__int64 N2=itr_c->second;
 					if(!bool_list[N2])
 						facet_list.push_back(Delaunay::Facet(itr,i));
 				}

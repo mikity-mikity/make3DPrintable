@@ -14,6 +14,11 @@ namespace GeometryProcessing{
 		if(owner==NULL)return true;
 		return false;
 	}
+	bool halfedge::ifPairIsBoundary()
+	{
+		if(pair->owner==NULL)return true;
+		return false;
+	}
 	halfedge::halfedge(vertex *_P)
 	{
 		P = _P;

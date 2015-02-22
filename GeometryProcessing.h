@@ -77,11 +77,11 @@ namespace GeometryProcessing
             }
             return res;
         }
-        int nVertices()
+        __int64 nVertices()
         {
             return vertices.size();
         }
-        int nFaces()
+        __int64 nFaces()
         {
             return faces.size();
         }
@@ -92,8 +92,8 @@ namespace GeometryProcessing
         }
         void Construct(Mesh *val)
         {
-            int _nVertices = val->Vertices.size();
-            int _nFaces = val->Faces.size();
+            int _nVertices = (int)val->Vertices.size();
+            int _nFaces = (int)val->Faces.size();
 
             __orientation = new orient[_nFaces];
             _faceTable = SparseMatrix<vector<face*>*>(_nVertices, _nVertices);
