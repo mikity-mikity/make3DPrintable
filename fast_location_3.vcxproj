@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
@@ -29,25 +29,25 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v110</PlatformToolset>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v110</PlatformToolset>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v110</PlatformToolset>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v110</PlatformToolset>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -128,7 +128,7 @@
     <Link>
       <AdditionalOptions> /machine:x64 /debug %(AdditionalOptions)</AdditionalOptions>
       <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;C:\CGAL-4.5.2\auxiliary\gmp\lib\libmpfr-4.lib;C:\CGAL-4.5.2\auxiliary\gmp\lib\libgmp-10.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:/CGAL-4.5.2/lib;C:/CGAL-4.5.2/lib/$(Configuration);;C:/local/boost_1_57_0/lib64-msvc-11.0;C:/local/boost_1_57_0/lib64-msvc-11.0/$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:/CGAL-4.5.2/lib;C:/CGAL-4.5.2/lib/$(Configuration);;C:/local/boost_1_57_0/lib64-msvc-12.0;C:/local/boost_1_57_0/lib64-msvc-12.0/$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ImportLibrary>C:/CGAL-4.5.2/examples/Triangulation_3/Debug/fast_location_3.lib</ImportLibrary>
       <LinkIncremental>true</LinkIncremental>
@@ -178,7 +178,7 @@
     <Link>
       <AdditionalOptions> /machine:x64 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;C:\CGAL-4.5.2\auxiliary\gmp\lib\libmpfr-4.lib;C:\CGAL-4.5.2\auxiliary\gmp\lib\libgmp-10.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:/CGAL-4.5.2/lib;C:/CGAL-4.5.2/lib/$(Configuration);;C:/local/boost_1_57_0/lib64-msvc-11.0;C:/local/boost_1_57_0/lib64-msvc-11.0/$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:/CGAL-4.5.2/lib;C:/CGAL-4.5.2/lib/$(Configuration);;C:/local/boost_1_57_0/lib64-msvc-12.0;C:/local/boost_1_57_0/lib64-msvc-12.0/$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <ImportLibrary>C:/CGAL-4.5.2/examples/Triangulation_3/Release/fast_location_3.lib</ImportLibrary>
       <ProgramDataBaseFile>C:/CGAL-4.5.2/examples/Triangulation_3/Release/fast_location_3.pdb</ProgramDataBaseFile>
@@ -201,7 +201,7 @@
       <FloatingPointExceptions>false</FloatingPointExceptions>
       <FloatingPointModel>Strict</FloatingPointModel>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
-      <Optimization>MinSpace</Optimization>
+      <Optimization>MaxSpeed</Optimization>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <WarningLevel>Level3</WarningLevel>
@@ -227,7 +227,7 @@
     <Link>
       <AdditionalOptions> /machine:x64 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;C:\CGAL-4.5.2\auxiliary\gmp\lib\libmpfr-4.lib;C:\CGAL-4.5.2\auxiliary\gmp\lib\libgmp-10.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:/CGAL-4.5.2/lib;C:/CGAL-4.5.2/lib/$(Configuration);;C:/local/boost_1_57_0/lib64-msvc-11.0;C:/local/boost_1_57_0/lib64-msvc-11.0/$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:/CGAL-4.5.2/lib;C:/CGAL-4.5.2/lib/$(Configuration);C:/local/boost_1_57_0/lib64-msvc-12.0/;C:/local/boost_1_57_0/lib64-msvc-12.0/$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <ImportLibrary>C:/CGAL-4.5.2/examples/Triangulation_3/MinSizeRel/fast_location_3.lib</ImportLibrary>
       <ProgramDataBaseFile>C:/CGAL-4.5.2/examples/Triangulation_3/MinSizeRel/fast_location_3.pdb</ProgramDataBaseFile>

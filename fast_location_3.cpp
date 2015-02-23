@@ -3,6 +3,8 @@
 #include <CGAL/Random.h>
 #include <CGAL/Triangulation_vertex_base_with_info_3.h>
 #include <CGAL/Surface_mesh_default_triangulation_3.h>
+#include <ppl.h>
+#include <array>
 #include <vector>
 #include <cassert>
 #include <iostream>
@@ -30,7 +32,7 @@ typedef struct
 }trapezoid;
 using namespace std;
 using namespace GeometryProcessing;
-
+using namespace Concurrency;
 typedef std::vector<eclipse> eclipses;
 typedef boost::tuple<double,branch*> Rad_branch;
 typedef boost::tuple<double,Mesh*> Thick_mesh;
@@ -164,6 +166,7 @@ boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::t
         Eigen::Vector3d N(x(index * 3 + 0),x(index * 3 + 1),x(index * 3 + 2));
         output.insert(std::pair<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>>(v,boost::make_tuple(P,N)));
 	}
+	delete(normalPerFaces);
 	return boost::make_tuple(t,MS,output);
 }
 boost::tuple<double,double> read(string filename,std::vector<Rad_branch> &data,std::vector<Thick_mesh> &mData)
@@ -340,14 +343,21 @@ void generate_eclipseTree(std::vector<Rad_branch> &data,std::vector<eclipses*> &
 		}
 	}
 }
+inline double max(std::vector<double> v)
+{
+    double maxVal = -1000000;       // êÆêîç≈è¨íl
+    for(int i = 0; i < (int)v.size(); ++i) {
+        if( v[i] > maxVal )
+            maxVal = v[i];
+    }
+    return maxVal;
+}
 void generate_exterior2(boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>>> tMS,double baseRes,std::vector<Point> &exterior)
 {
 	double t;
 	GeometryProcessing::MeshStructure *MS;
 	std::map<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>> info;
 	boost::tie(t,MS,info)=tMS;
-	int DIV=(int)(t/baseRes);
-	if(DIV<4)DIV=4;
 	for(auto v:MS->vertices)
 	{
 		if(!v->isBoundary()){
@@ -370,8 +380,8 @@ void generate_exterior2(boost::tuple<double,GeometryProcessing::MeshStructure*,s
 			Eigen::Vector3d P1in=P1-0.5*t*N1;
 			Eigen::Vector3d P2in=P2-0.5*t*N2;
 			double L=(P2in-P1in).norm();
-			int LDIV=4;
-			if(L>baseRes*4.0)LDIV=(int)(L/baseRes);
+			int LDIV=2;
+			if(L>baseRes*2.0)LDIV=(int)(L/baseRes);
 			auto T=P2in-P1in;
 			for(int ss=1;ss<LDIV;ss++)
 			{
@@ -391,8 +401,8 @@ void generate_exterior2(boost::tuple<double,GeometryProcessing::MeshStructure*,s
 			Eigen::Vector3d P1out=P1+0.5*t*N1;
 			Eigen::Vector3d P2out=P2+0.5*t*N2;
 			double L=(P2out-P1out).norm();
-			int LDIV=4;
-			if(L>baseRes*4.0)LDIV=(int)(L/baseRes);
+			int LDIV=2;
+			if(L>baseRes*2.0)LDIV=(int)(L/baseRes);
 			auto T=P2out-P1out;
 			for(int ss=1;ss<LDIV;ss++)
 			{
@@ -405,139 +415,52 @@ void generate_exterior2(boost::tuple<double,GeometryProcessing::MeshStructure*,s
 	double tt[5]={-0.5,-0.4,0.0,0.4,0.5};
 	for(auto f:MS->faces)
 	{
-		Eigen::Vector3d P1,P2,P3,N1,N2,N3; //Position,Normal
+		Eigen::Vector3d P1,P2,P3,N1,N2,N3,P1out,P1in,P2out,P2in,P3out,P3in,_P1,_P2,_P3; //Position,Normal
+		boost::tie(P1,N1)=info.find(f->firsthalfedge->P)->second;
+		boost::tie(P2,N2)=info.find(f->firsthalfedge->next->P)->second;
+		boost::tie(P3,N3)=info.find(f->firsthalfedge->next->next->P)->second;
+		P1in=P1+N1*t*0.5;
+		P2in=P2+N2*t*0.5;
+		P3in=P3+N3*t*0.5;
+		P1out=P1-N1*t*0.5;
+		P2out=P2-N2*t*0.5;
+		P3out=P3-N3*t*0.5;
+		auto T12in=P2in-P1in;
+		auto T23in=P3in-P2in;
+		auto T31in=P1in-P3in;
+		auto T12out=P2out-P1out;
+		auto T23out=P3out-P2out;
+		auto T31out=P1out-P3out;
+		//choose longest
+		double dd[]={T12in.norm(),T23in.norm(),T31in.norm(),T12out.norm(),T23out.norm(),T31out.norm()};
+		std::vector<double> ll(dd,dd+6);
+		double L=max(ll);
+		int LDIV=(int)(L/baseRes);
+		if(LDIV<2)LDIV=2;
 		for(int i=0;i<5;i++)
 		{
-		boost::tie(P1,N1)=info.find(f->firsthalfedge->P)->second;
-		boost::tie(P2,N2)=info.find(f->firsthalfedge->next->P)->second;
-		boost::tie(P3,N3)=info.find(f->firsthalfedge->next->next->P)->second;
-			P1+=N1*t*tt[i];
-			P2+=N2*t*tt[i];
-			P3+=N3*t*tt[i];
+			_P1=P1+N1*t*tt[i];
+			_P2=P2+N2*t*tt[i];
+			_P3=P3+N3*t*tt[i];
 			//choose longest
-			auto T12=P2-P1;
-			auto T23=P3-P2;
-			auto T31=P1-P3;
-			Eigen::Vector3d D,E;
-			Eigen::Vector3d P;
-			if(T12.norm()>T23.norm()&&T12.norm()>T31.norm())
-			{
-				D=T12;
-				E=T12.cross(T23).cross(T12);
-				E.normalize();
-				E*=T12.norm();
-				P=P1;
-			}
-			if(T23.norm()>T12.norm()&&T23.norm()>T31.norm())
-			{
-				D=T23;
-				E=T23.cross(T31).cross(T23);
-				E.normalize();
-				E*=T23.norm();
-				P=P2;
-			}
-			if(T31.norm()>T12.norm()&&T31.norm()>T23.norm())
-			{
-				D=T31;
-				E=T31.cross(T12).cross(T31);
-				E.normalize();
-				E*=T31.norm();
-				P=P3;
-			}
-			int LDIV=2;
-			if(D.norm()>baseRes*2.0)LDIV=(int)(D.norm()/baseRes);
+			//auto T12=_P2-_P1;
+			auto T23=_P3-_P2;
+			auto T13=_P3-_P1;
 			for(int v=1;v<LDIV;v++)
 			{
-				for(int u=1;u<LDIV;u++)
-				{
-					double sv=((double)v)/((double)LDIV);
-					double su=((double)u)/((double)LDIV);
-					auto p=P+su*D+sv*E;
-					//judge if triangle contain p inside of itself.
-
-					auto p1=p-P1;
-					auto p2=p-P2;
-					auto p3=p-P3;
-					auto n1=p1.cross(T12);
-					auto n2=p2.cross(T23);
-					auto n3=p3.cross(T31);
-					int judge=0;
-					if(n1.dot(n2)>0&&n1.dot(n3)>0&&n2.dot(n3)>0)judge=1;
-					if(judge==1)
-					{
-						exterior.push_back(Point(p.x(),p.y(),p.z()));
-					}
-				}
-			}
-		}
-	}
-	/*
-	for(auto f:MS->faces)
-	{
-		Eigen::Vector3d P1,P2,P3,N1,N2,N3; //Position,Normal
-		boost::tie(P1,N1)=info.find(f->firsthalfedge->P)->second;
-		boost::tie(P2,N2)=info.find(f->firsthalfedge->next->P)->second;
-		boost::tie(P3,N3)=info.find(f->firsthalfedge->next->next->P)->second;
-		P1-=N1*t*0.5;
-		P2-=N2*t*0.5;
-		P3-=N3*t*0.5;
-		//choose longest
-		auto T12=P2-P1;
-		auto T23=P3-P2;
-		auto T31=P1-P3;
-		Eigen::Vector3d D,E;
-		Eigen::Vector3d P;
-		if(T12.norm()>T23.norm()&&T12.norm()>T31.norm())
-		{
-			D=T12;
-			E=T12.cross(T23).cross(T12);
-			E.normalize();
-			E*=T12.norm();
-			P=P1;
-		}
-		if(T23.norm()>T12.norm()&&T23.norm()>T31.norm())
-		{
-			D=T23;
-			E=T23.cross(T31).cross(T23);
-			E.normalize();
-			E*=T23.norm();
-			P=P2;
-		}
-		if(T31.norm()>T12.norm()&&T31.norm()>T23.norm())
-		{
-			D=T31;
-			E=T31.cross(T12).cross(T31);
-			E.normalize();
-			E*=T31.norm();
-			P=P3;
-		}
-		int LDIV=4;
-		if(D.norm()>baseRes*4.0)LDIV=(int)(D.norm()/baseRes);
-		for(int v=1;v<LDIV;v++)
-		{
-			for(int u=1;u<LDIV;u++)
-			{
 				double sv=((double)v)/((double)LDIV);
-				double su=((double)u)/((double)LDIV);
-				auto p=P+su*D+sv*E;
-				//judge if triangle contain p inside of itself.
-
-				auto p1=p-P1;
-				auto p2=p-P2;
-				auto p3=p-P3;
-				auto n1=p1.cross(T12);
-				auto n2=p2.cross(T23);
-				auto n3=p3.cross(T31);
-				int judge=0;
-				if(n1.dot(n2)>0&&n1.dot(n3)>0&&n2.dot(n3)>0)judge=1;
-				if(judge==1)
+				auto __P1=_P1+T13*sv;
+				auto __P2=_P2+T23*sv;
+				for(int u=1;u<LDIV-v;u++)
 				{
+					double su=((double)u)/((double)(LDIV-v));
+					auto T12=__P2-__P1;
+					auto p=__P1+T12*su;
 					exterior.push_back(Point(p.x(),p.y(),p.z()));
 				}
 			}
 		}
-
-	}*/
+	}
 	
 	auto e=MS->boundaryStart;
 	do{
@@ -719,6 +642,8 @@ void triangulate(Delaunay &T,std::vector<Point> &exterior)
 		T.insert(be,en);
 		std::cout<<"*";
 	}
+	exterior.clear();
+	std::cout<<endl;
 
 }
 void asign_index_to_cells(std::map<Delaunay::Cell_handle,__int64> &index,Delaunay &T)
@@ -757,17 +682,15 @@ typedef struct
 }info;
 typedef struct
 {
-	__int64 numInterior;
-	__int64 next;
 	Cell_handle before;
 	Point p;
 }info2;
-__int64 computeInterior2(vector<boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>>>> mesh_infos,double baseRes,std::function<void(info2&)>func)
+__int64 computeInterior2(vector<boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>>>> mesh_infos,double baseRes,std::function<void(info2&,__int64&,__int64&)>func)
 {
-	info2 myInfo;
-	myInfo.numInterior=0;
-	myInfo.next=1000000;
-	for(auto tMS:mesh_infos)
+	
+	__int64 numInterior=0;
+	__int64 next=1000000;
+	for (auto tMS : mesh_infos)
 	{
 		double t;
 		GeometryProcessing::MeshStructure *MS;
@@ -775,83 +698,93 @@ __int64 computeInterior2(vector<boost::tuple<double,GeometryProcessing::MeshStru
 		boost::tie(t,MS,info)=tMS;
 		int TDIV=4;
 		if(t>baseRes*4.0)TDIV=(int)(t/baseRes);
-		TDIV*=5;
-		for(auto f:MS->faces)
+		TDIV*=8;
+		vector<boost::tuple<vector<face*>::iterator, vector<face*>::iterator, info2*, int>> tasks;
+		__int64 size= MS->faces.size();
+		int nTasks = 100;
+		if (size < 1000)nTasks = 1;
+		info2* myInfo=new info2[nTasks];
+		
+		for (int i = 0; i < nTasks; i++)
 		{
-			Eigen::Vector3d P1,P2,P3,N1,N2,N3; //Position,Normal
-			boost::tie(P1,N1)=info.find(f->firsthalfedge->P)->second;
-			boost::tie(P2,N2)=info.find(f->firsthalfedge->next->P)->second;
-			boost::tie(P3,N3)=info.find(f->firsthalfedge->next->next->P)->second;
-			for(int ss=0;ss<=TDIV;ss++)
+			__int64 be = (size*i) / nTasks;
+			__int64 en = (size*(i + 1)) / nTasks;
+			myInfo[i].before = NULL;
+			vector<face*>::iterator first = MS->faces.begin(), second = MS->faces.begin();
+			for (int j = 0; j < be; j++)
 			{
-				double sss=(((double)ss))/((double)TDIV)-0.5;
-				auto _P1=P1+N1*t*sss*0.99;
-				auto _P2=P2+N2*t*sss*0.99;
-				auto _P3=P3+N3*t*sss*0.99;
-				//choose longest
-				auto T12=_P2-_P1;
-				auto T23=_P3-_P2;
-				auto T31=_P1-_P3;
-				Eigen::Vector3d D,E;
-				Eigen::Vector3d P;
-				double normT12=T12.squaredNorm();
-				double normT23=T23.squaredNorm();
-				double normT31=T31.squaredNorm();
-				if(normT12>normT23&&normT12>normT31)
-				{
-					D=T12;
-					E=T12.cross(T23).cross(T12);
-					E.normalize();
-					E*=T12.norm();
-					P=_P1;
-				}else
-				if(normT23>normT12&&normT23>normT31)
-				{
-					D=T23;
-					E=T23.cross(T31).cross(T23);
-					E.normalize();
-					E*=T23.norm();
-					P=_P2;
-				}else
-				if(normT31>normT12&&normT31>normT23)
-				{
-					D=T31;
-					E=T31.cross(T12).cross(T31);
-					E.normalize();
-					E*=T31.norm();
-					P=_P3;
-				}
-				int DIV=2;
-				if(D.norm()>baseRes*2.0)DIV=(int)(D.norm()/baseRes);
-				DIV*=8;
-				for(int v=1;v<=DIV;v++)
-				{
-					for(int u=1;u<=DIV;u++)
-					{
-						double sv=(((double)v)-0.5)/((double)DIV);
-						double su=(((double)u)-0.5)/((double)DIV);
-						auto p=P+su*D+sv*E;
-						//judge if triangle contain p inside of itself.
+				first++;
+			}
+			for (int j = 0; j < en; j++)
+			{
+				second++;
+			}
+			tasks.push_back(boost::make_tuple<vector<face*>::iterator, vector<face*>::iterator, info2*,int>(first, second, &myInfo[i], i));
+		}
 
-						auto p1=p-_P1;
-						auto p2=p-_P2;
-						auto p3=p-_P3;
-						auto n1=p1.cross(T12);
-						auto n2=p2.cross(T23);
-						auto n3=p3.cross(T31);
-						int judge=0;
-						if(n1.dot(n2)>0&&n1.dot(n3)>0&&n2.dot(n3)>0)judge=1;
-						if(judge==1)
+		parallel_for_each(tasks.begin(), tasks.end(), [&baseRes, &TDIV, &t, &func,&info, &numInterior, &next](boost::tuple<vector<face*>::iterator, vector<face*>::iterator, info2*, int> tup)
+		{
+			vector<face*>::iterator begin;
+			vector<face*>::iterator end;
+			info2* myInfo;
+			int taskNum;
+			boost::tie(begin, end, myInfo, taskNum) = tup;
+			for (vector<face*>::iterator itr = begin; itr != end; itr++)
+			{
+				face *f = *itr;
+				Eigen::Vector3d P1, P2, P3, N1, N2, N3, P1out, P1in, P2out, P2in, P3out, P3in, _P1, _P2, _P3; //Position,Normal
+				boost::tie(P1, N1) = info.find(f->firsthalfedge->P)->second;
+				boost::tie(P2, N2) = info.find(f->firsthalfedge->next->P)->second;
+				boost::tie(P3, N3) = info.find(f->firsthalfedge->next->next->P)->second;
+				P1in = P1 + N1*t*0.5;
+				P2in = P2 + N2*t*0.5;
+				P3in = P3 + N3*t*0.5;
+				P1out = P1 - N1*t*0.5;
+				P2out = P2 - N2*t*0.5;
+				P3out = P3 - N3*t*0.5;
+				auto T12in = P2in - P1in;
+				auto T23in = P3in - P2in;
+				auto T31in = P1in - P3in;
+				auto T12out = P2out - P1out;
+				auto T23out = P3out - P2out;
+				auto T31out = P1out - P3out;
+				//choose longest
+				double dd[] = { T12in.norm(), T23in.norm(), T31in.norm(), T12out.norm(), T23out.norm(), T31out.norm() };
+				std::vector<double> ll(dd, dd + 6);
+				double L = max(ll);
+				int LDIV = (int)(L / baseRes);
+				if (LDIV < 2)LDIV = 2;
+				LDIV *= 8;
+				for (int ss = 1; ss <= TDIV; ss++)
+				{
+					double sss = (((double)ss - 0.5)) / ((double)TDIV) - 0.5;
+					_P1 = P1 + N1*t*sss;
+					_P2 = P2 + N2*t*sss;
+					_P3 = P3 + N3*t*sss;
+					//choose longest
+					//auto T12=_P2-_P1;
+					auto T23 = _P3 - _P2;
+					auto T13 = _P3 - _P1;
+					for (int v = 1; v <= LDIV; v++)
+					{
+						double sv = ((double)v - 0.5) / ((double)LDIV);
+						auto __P1 = _P1 + T13*sv;
+						auto __P2 = _P2 + T23*sv;
+						for (int u = 1; u <= LDIV - v; u++)
 						{
-							myInfo.p=Point(p.x(),p.y(),p.z());
-							func(myInfo);
+							double su = ((double)u - 0.5) / ((double)(LDIV - v));
+							auto T12 = __P2 - __P1;
+							auto p = __P1 + T12*su;
+							myInfo->p = Point(p.x(), p.y(), p.z());
+							func(*myInfo, numInterior, next);
 						}
 					}
 				}
 			}
-		}
+		});
+		delete(myInfo);
 	}
-	return myInfo.numInterior;
+	return numInterior;
 }
 __int64 computeInterior(std::vector<Rad_branch> &data,std::vector<eclipses*> &eclipseTree,double baseRes,std::function<void(info&)>func)
 {
@@ -1017,7 +950,6 @@ int main(int argc, char *argv[])
 	std::cout<<"start cell search"<<endl;
 
 	
-
 	__int64* cells=new __int64[T.number_of_finite_cells()];
 	
 	std::cout<<"initialize cells"<<endl;
@@ -1043,20 +975,20 @@ int main(int argc, char *argv[])
 			}
 });
 	std::cout<<"interior.size():"<< size<<endl;
-	size2=computeInterior2(mesh_infos,baseRes,[](info2& myInfo){
-		if( myInfo.numInterior>=myInfo.next)
+	size2=computeInterior2(mesh_infos,baseRes,[](info2& myInfo,__int64& numInterior,__int64& next){
+		if( numInterior>=next)
 		{
-			std::cout<< myInfo.numInterior<<endl;
-			myInfo.next+=1000000;
+			std::cout << numInterior<<endl;
+			next+=1000000;
 		}
-		myInfo.numInterior++;
+		numInterior++;
 	});
 	std::cout<<"interior2.size():"<< size2<<endl;
-	computeInterior2(mesh_infos,baseRes,[&size2,&cells,&index,&T](info2& myInfo){
+	computeInterior2(mesh_infos, baseRes, [&size2, &cells, &index, &T](info2& myInfo, __int64& numInterior, __int64& next){
 		int li, lj;
 		Locate_type lt;
 		Cell_handle c;
-		if(myInfo.numInterior==0)
+		if (myInfo.before==NULL)
 			c = T.locate(myInfo.p, lt,li,lj);
 		else
 			c=T.locate(myInfo.p,lt,li,lj,myInfo.before);
@@ -1068,15 +1000,24 @@ int main(int argc, char *argv[])
 				myInfo.before=c;
 		}
 					
-		if( myInfo.numInterior>=myInfo.next)
+		if( numInterior>=next)
 		{
-			std::cout<< myInfo.numInterior<<"/"<<size2<<endl;
-			myInfo.next+=1000000;
+			std::cout << numInterior<<"/"<<size2 << endl;
+
+			next+=1000000;
 		}
 
-		myInfo.numInterior++;
+		numInterior++;
 	});
-
+	for(auto tMS:meshStructures)
+	{
+		double t;
+		Mesh *mesh;
+		MeshStructure *MS;
+		boost::tie(t,mesh,MS)=tMS;
+		delete(MS);
+		delete(mesh);
+	}
 	computeInterior(data,eclipseTree,baseRes,[&size,&cells,&index,&T](info& myInfo){
 
 			Cell_handle c;
@@ -1160,6 +1101,16 @@ int main(int argc, char *argv[])
 			}
 	
 	});
+	for(vector<Rad_branch>::iterator itr=data.begin();itr!=data.end();itr++)
+	{
+		Rad_branch a=*itr;
+		const branch* _branch=boost::get<1>(a);
+		delete(_branch);
+	}
+	for(vector<eclipses*>::iterator itr=eclipseTree.begin();itr!=eclipseTree.end();itr++)
+	{
+		delete(*itr);
+	}
 
 	std::cout<<"start cell locate"<<endl;	
 	__int64 N=0;
@@ -1357,7 +1308,6 @@ int main(int argc, char *argv[])
 		std::cout<<totalCount<<"cells removed!"<<endl;
 		if(totalCount==0)break;
 	}
-
 	std::cout<<"erase irregular incident edges"<<endl;
 	while(true)
 	{
@@ -1517,32 +1467,18 @@ int main(int argc, char *argv[])
 	N=0;
 	NN=T.number_of_finite_cells()/20;
 	if(NN==0)NN=1;
-	/*for(Delaunay::Finite_cells_iterator itr=T.finite_cells_begin();itr!=T.finite_cells_end();itr++,N++)
-	{
-		if(bool_list[N])
-		{
-			Point PA=itr->vertex(0)->point();
-			Point PB=itr->vertex(1)->point();
-			Point PC=itr->vertex(2)->point();
-			Point PD=itr->vertex(3)->point();
-			ofs3<<PA.x()<<" , "<<PA.y()<<" , "<<PA.z();
-			ofs3<<" , "<<PB.x()<<" , "<<PB.y()<<" , "<<PB.z();
-			ofs3<<" , "<<PC.x()<<" , "<<PC.y()<<" , "<<PC.z();
-			ofs3<<" , "<<PD.x()<<" , "<<PD.y()<<" , "<<PD.z()<<endl;
-		}
-		if(((int)N/NN)*NN==N)std::cout<<"*";
-	}*/
+	/*
 	for(auto v :exterior)
 	{
 		ofs3<<v.x()<<" , "<<v.y()<<" , "<<v.z()<<endl;
-	}
+	}*/
 	std::cout<<endl;
 	N=0;
 	int num=0;
 	NN=facet_list.size()/20;
 	if(NN==0)NN=1;
-
-	std::map<Delaunay::Vertex_handle,int> vIndex;
+	
+	std::map<Delaunay::Vertex_handle,__int64> vIndex;
 
 	for(auto itr=facet_list.begin();itr!=facet_list.end();itr++,num++)
 	{
@@ -1551,7 +1487,7 @@ int main(int argc, char *argv[])
 			if(i!=itr->second)
 			{
 				Delaunay::Vertex_handle handle=itr->first->vertex(i);				
-				std::map<Delaunay::Vertex_handle,int>::iterator pair=vIndex.find(handle);
+				std::map<Delaunay::Vertex_handle,__int64>::iterator pair=vIndex.find(handle);
 				if(pair==vIndex.end())
 				{
 					Delaunay::Point P=handle->point();
@@ -1573,24 +1509,14 @@ int main(int argc, char *argv[])
 	std::cout<<endl;
 	ofs.close();
 	ofs2.close();
-	ofs3.close();
+	//ofs3.close();
+	
 	//ofs4.close();
 	
 	
 	std::cout << "Press Return To Exit...";
 	std::cin.get();
 
-	//release memory
-	for(vector<Rad_branch>::iterator itr=data.begin();itr!=data.end();itr++)
-	{
-		Rad_branch a=*itr;
-		const branch* _branch=boost::get<1>(a);
-		delete(_branch);
-	}
-	for(vector<eclipses*>::iterator itr=eclipseTree.begin();itr!=eclipseTree.end();itr++)
-	{
-		delete(*itr);
-	}
 	delete(cells);
 	delete(bool_list);
 

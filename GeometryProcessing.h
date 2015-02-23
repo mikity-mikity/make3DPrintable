@@ -4,6 +4,7 @@
 #include"face.h"
 #include"halfedge.h"
 #include"vertex.h"
+#include<iostream>
 using namespace std;
 using namespace Eigen;
 namespace GeometryProcessing
@@ -208,7 +209,7 @@ namespace GeometryProcessing
             //check if any naked halfedge survives
             for (auto e : halfedges)
             {
-                if (e->isNaked()) cout<<"naked halfedges survive!";
+                if (e->isNaked()) std::cout<<"naked halfedges survive!";
             }
 
 			//post process to create stars
@@ -246,6 +247,7 @@ namespace GeometryProcessing
             {
                 if (v->hf_begin->pair->isBoundary()) outerVertices.push_back(v); else innerVertices.push_back(v);
             }
+			delete(__orientation);
         }
 		private:
 			void halfEdgeAdd(face *f)
@@ -385,12 +387,52 @@ namespace GeometryProcessing
 		public:
 			void Clear()
 			{
+				if(vertices.size()!=0)
+				{
+					for(auto v : vertices)
+					{
+						delete(v);
+					}
+				}
 				vertices.clear();
+				if(faces.size()!=0)
+				{
+					for(auto f:faces)
+					{
+						delete(f);
+					}
+				}
 				faces.clear();
+				if(halfedges.size()!=0)
+				{
+					for(auto hf:halfedges)
+					{
+						delete(hf);
+					}
+				}
+				if(_faceTable.nonZeros()!=0)
+				{
+					for (int k=0; k<_faceTable.outerSize(); ++k)
+					{
+					  for (SparseMatrix<vector<face*>*>::InnerIterator it(_faceTable,k); it; ++it)
+					  {
+						delete(it.value());						
+						//it.row();   // row index
+						//it.col();   // col index (here it is equal to k)
+						//it.index(); // inner index, here it is equal to it.row()
+					  }
+					}
+				}
+				_faceTable.setZero();
+				__halfedgeTable.setZero();
 				halfedges.clear();
 				innerVertices.clear();
 				outerVertices.clear();
 				boundaryStart = NULL;
+			}
+			~MeshStructure()
+			{
+				this->Clear();
 			}
     };
 }
