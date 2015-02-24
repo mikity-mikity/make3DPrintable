@@ -166,7 +166,7 @@ boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::t
         Eigen::Vector3d N(x(index * 3 + 0),x(index * 3 + 1),x(index * 3 + 2));
         output.insert(std::pair<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>>(v,boost::make_tuple(P,N)));
 	}
-	delete(normalPerFaces);
+	delete[] normalPerFaces;
 	return boost::make_tuple(t,MS,output);
 }
 boost::tuple<double,double> read(string filename,std::vector<Rad_branch> &data,std::vector<Thick_mesh> &mData)
@@ -667,8 +667,6 @@ void init_cells(Delaunay &T,__int64* cells)
 }
 typedef struct
 {
-	__int64 numInterior;
-	__int64 next;
 	int DIV;
 	Vector beforeX;
 	Vector beforeY;
@@ -685,20 +683,19 @@ typedef struct
 	Cell_handle before;
 	Point p;
 }info2;
-__int64 computeInterior2(vector<boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>>>> mesh_infos,double baseRes,std::function<void(info2&,__int64&,__int64&)>func)
-{
-	
+
+
+__int64 computeInterior2(vector<boost::tuple<double,GeometryProcessing::MeshStructure*,std::map<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>>>> mesh_infos,double baseRes,std::function<void(info2&,__int64&)>func,__int64 nsize)
+{	
 	__int64 numInterior=0;
-	__int64 next=1000000;
+	__int64 next=0;
 	for (auto tMS : mesh_infos)
 	{
 		double t;
 		GeometryProcessing::MeshStructure *MS;
 		std::map<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>> info;
 		boost::tie(t,MS,info)=tMS;
-		int TDIV=4;
-		if(t>baseRes*4.0)TDIV=(int)(t/baseRes);
-		TDIV*=8;
+		int TDIV=5;
 		vector<boost::tuple<vector<face*>::iterator, vector<face*>::iterator, info2*, int>> tasks;
 		__int64 size= MS->faces.size();
 		int nTasks = 100;
@@ -721,8 +718,9 @@ __int64 computeInterior2(vector<boost::tuple<double,GeometryProcessing::MeshStru
 			}
 			tasks.push_back(boost::make_tuple<vector<face*>::iterator, vector<face*>::iterator, info2*,int>(first, second, &myInfo[i], i));
 		}
-
-		parallel_for_each(tasks.begin(), tasks.end(), [&baseRes, &TDIV, &t, &func,&info, &numInterior, &next](boost::tuple<vector<face*>::iterator, vector<face*>::iterator, info2*, int> tup)
+		double uv_ser[] = { 0.005, 0.02, 0.1, 0.22, 0.39, 0.61, 0.78, 0.9, 0.98, 0.995 };
+		critical_section cs;
+		parallel_for_each(tasks.begin(), tasks.end(), [&baseRes, &TDIV, &t, &func, &info, &numInterior, &next, &nsize,&uv_ser,&cs](boost::tuple<vector<face*>::iterator, vector<face*>::iterator, info2*, int> tup)
 		{
 			vector<face*>::iterator begin;
 			vector<face*>::iterator end;
@@ -754,131 +752,190 @@ __int64 computeInterior2(vector<boost::tuple<double,GeometryProcessing::MeshStru
 				double L = max(ll);
 				int LDIV = (int)(L / baseRes);
 				if (LDIV < 2)LDIV = 2;
-				LDIV *= 8;
-				for (int ss = 1; ss <= TDIV; ss++)
+				//LDIV *= 10;
+				__int64 nI = 0;
+				for (int ss = 0; ss <TDIV; ss++)
 				{
-					double sss = (((double)ss - 0.5)) / ((double)TDIV) - 0.5;
-					_P1 = P1 + N1*t*sss;
-					_P2 = P2 + N2*t*sss;
-					_P3 = P3 + N3*t*sss;
-					//choose longest
-					//auto T12=_P2-_P1;
-					auto T23 = _P3 - _P2;
-					auto T13 = _P3 - _P1;
-					for (int v = 1; v <= LDIV; v++)
+					for (int tt = 0; tt < 10; tt++)
 					{
-						double sv = ((double)v - 0.5) / ((double)LDIV);
-						auto __P1 = _P1 + T13*sv;
-						auto __P2 = _P2 + T23*sv;
-						for (int u = 1; u <= LDIV - v; u++)
+						double sss = (((double)ss/* - 0.5*/+uv_ser[tt])) / ((double)TDIV) - 0.5;
+						_P1 = P1 + N1*t*sss;
+						_P2 = P2 + N2*t*sss;
+						_P3 = P3 + N3*t*sss;
+						//choose longest
+						//auto T12=_P2-_P1;
+						auto T23 = _P3 - _P2;
+						auto T13 = _P3 - _P1;
+						for (int v = 0; v < LDIV; v++)
 						{
-							double su = ((double)u - 0.5) / ((double)(LDIV - v));
-							auto T12 = __P2 - __P1;
-							auto p = __P1 + T12*su;
-							myInfo->p = Point(p.x(), p.y(), p.z());
-							func(*myInfo, numInterior, next);
+							for (int vv = 0; vv < 10; vv++)
+							{
+								double sv = ((double)v /*- 0.5*/ + uv_ser[vv]) / ((double)LDIV);
+								auto __P1 = _P1 + T13*sv;
+								auto __P2 = _P2 + T23*sv;
+								for (int u = 0; u < LDIV - v; u++)
+								{
+									for (int uu = 0; uu < 10; uu++)
+									{
+										double su = ((double)u /*- 0.5*/ + uv_ser[uu]) / ((double)(LDIV - v));
+										auto T12 = __P2 - __P1;
+										auto p = __P1 + T12*su;
+										myInfo->p = Point(p.x(), p.y(), p.z());
+										func(*myInfo, nI);
+									}
+								}
+							}
 						}
 					}
 				}
+				cs.lock();
+				numInterior += nI;
+				while (numInterior >= next)
+				{
+					next += 1000000;
+					if (nsize == 0)
+						std::cout << taskNum << ":" << next - 1000000 << endl;
+					else
+						std::cout << taskNum << ":" << next - 1000000 << "/" << nsize << endl;
+
+				}
+				cs.unlock();
 			}
 		});
-		delete(myInfo);
+		delete [] myInfo;
 	}
+	std::cout << "numInterior2:" << numInterior << endl;
+	std::cout << "next:" << next << endl;
+	std::cin.get();
 	return numInterior;
 }
-__int64 computeInterior(std::vector<Rad_branch> &data,std::vector<eclipses*> &eclipseTree,double baseRes,std::function<void(info&)>func)
+__int64 computeInterior(std::vector<Rad_branch> &data, std::vector<eclipses*> &eclipseTree, double baseRes, std::function<void(info&,__int64&)>func,__int64 nsize)
 {
-	info myInfo;
-	myInfo.numInterior=0;
-	myInfo.next=1000000;
 
-	vector<Rad_branch>::iterator itrA=data.begin();
-	vector<eclipses*>::iterator itrB=eclipseTree.begin();
-	while(itrA!=data.end())
+	vector<Rad_branch>::iterator __itrA = data.begin();
+	vector<eclipses*>::iterator __itrB = eclipseTree.begin();
+	__int64 numInterior=0;
+	__int64 next=0;
+	info* __myInfo=new info[data.size()];
+	int N = 0;
+	vector<boost::tuple<std::vector<Rad_branch>::iterator,std::vector<eclipses*>::iterator, info*, int>> tasks;
+	for (int i = 0; i < data.size(); i++)
 	{
-		int YDIV=8;
+		__myInfo[i].before = NULL;
+		if (__itrA == data.end())break;
+		if (__itrB == eclipseTree.end())break;
+		tasks.push_back(boost::make_tuple(__itrA, __itrB, &__myInfo[i], i));
+		__itrA++;
+		__itrB++;
+	}
+	critical_section cs;
+
+    parallel_for_each(tasks.begin(), tasks.end(), [&baseRes, &numInterior, &next, &func,&nsize,&cs](boost::tuple<std::vector<Rad_branch>::iterator, std::vector<eclipses*>::iterator, info*, int> task)
+		//while(itrA!=data.end())
+	{
+		int YDIV = 8;
 		double Radius;
-		eclipses* _eclipses=*itrB;
-		boost::tie(Radius,myInfo.branch)=*itrA;  //decompose
-		myInfo.itrC=myInfo.branch->begin();
-		myInfo.itrD=_eclipses->begin();
-		myInfo.beforeX=Vector(0,0,0);
-		myInfo.beforeY=Vector(0,0,0);
+		std::vector<Rad_branch>::iterator itrA;
+		std::vector<eclipses*>::iterator itrB;
+		info* myInfo;
+		int taskNum;
+		boost::tie(itrA, itrB, myInfo, taskNum) = task;
+		eclipses* _eclipses = *itrB;
+		boost::tie(Radius, myInfo->branch) = *itrA;  //decompose
+		myInfo->itrC = myInfo->branch->begin();
+		myInfo->itrD = _eclipses->begin();
+		myInfo->beforeX = Vector(0, 0, 0);
+		myInfo->beforeY = Vector(0, 0, 0);
 		//Division number along diameter
-		int RDIV=12;
-		if(Radius*2.*PI/12.<baseRes)
+		int RDIV = 12;
+		if (Radius*2.*PI / 12. < baseRes)
 		{
-			RDIV=12;
-		}else{
-			RDIV=(int)(Radius*2.*PI/baseRes);
+			RDIV = 12;
+		}
+		else{
+			RDIV = (int)(Radius*2.*PI / baseRes);
 		}
 
 		//Generate base particles
 		vector<Vector> vectors;
-		double alpha=PI/((double)RDIV);
-		double R2=Radius*std::cos(alpha);
-		for (double i=0.5;i<RDIV;i++)
+		double alpha = PI / ((double)RDIV);
+		double R2 = Radius*std::cos(alpha);
+		for (double i = 0.5; i < RDIV; i++)
 		{
-			double theta=2.*PI*((double)i)/((double)RDIV);
-			Vector vector(R2*std::cos(theta),R2*std::sin(theta),0);
+			double theta = 2.*PI*((double)i) / ((double)RDIV);
+			Vector vector(R2*std::cos(theta), R2*std::sin(theta), 0);
 			vectors.push_back(vector);
 		}
-		double edge=2*std::sin(alpha)*Radius;
-		double dx=edge/YDIV;
-		myInfo.particles.clear();
+		double edge = 2 * std::sin(alpha)*Radius;
+		double dx = edge / YDIV;
+		myInfo->particles.clear();
 
-		for(double i=-Radius;i<Radius;i+=dx)
+		for (double i = -Radius; i < Radius; i += dx)
 		{
-			for(double j=-Radius;j<Radius;j+=dx)
+			for (double j = -Radius; j < Radius; j += dx)
 			{
-				Vector V(i,j,0);
-				bool flag=true;
-				for(auto T=vectors.begin();T!=vectors.end();T++)
+				Vector V(i, j, 0);
+				bool flag = true;
+				for (auto T = vectors.begin(); T != vectors.end(); T++)
 				{
-					if ((*T)*V<R2*R2)
+					if ((*T)*V < R2*R2)
 					{
 						continue;
-					}else
+					}
+					else
 					{
-						flag=false;
+						flag = false;
 						break;
 					}
-            
+
 				}
-				if(flag)
-					myInfo.particles.push_back(Point(i,j,0));
+				if (flag)
+					myInfo->particles.push_back(Point(i, j, 0));
 			}
 		}
-		
-		std::cout<<"particles.size()"<<myInfo.particles.size()<<endl;
-		std::cout<<"_branch.size()"<<myInfo.branch->size()<<endl;
 
-		while(myInfo.itrC!=myInfo.branch->end()-1)
+		std::cout << taskNum << ":particles.size()" << myInfo->particles.size() << endl;
+		std::cout << taskNum << ":_branch.size()" << myInfo->branch->size() << endl;
+
+		while (myInfo->itrC != myInfo->branch->end() - 1)
 		{
 			//Division number along line
-			Point P=*myInfo.itrC;
-			Point Q=*(myInfo.itrC+1);
-			myInfo.V=Q-P;
-			double Length=std::sqrt(myInfo.V.squared_length());
-			myInfo.V=myInfo.V/Length;
-			myInfo.DIV=1;//default division number
-			if(Length<baseRes)
+			Point P = *myInfo->itrC;
+			Point Q = *(myInfo->itrC+1);
+			myInfo->V = Q - P;
+			double Length = std::sqrt(myInfo->V.squared_length());
+			myInfo->V = myInfo->V / Length;
+			myInfo->DIV = 1;//default division number
+			if (Length < baseRes)
 			{
-				myInfo.DIV=1;
-			}else{
-				myInfo.DIV=(int)(Length/baseRes)+1;
+				myInfo->DIV = 1;
 			}
-			myInfo.DIV*=5;
-			
-			func(myInfo);
-
-			myInfo.itrC++;
-			myInfo.itrD++;
+			else{
+				myInfo->DIV = (int)(Length / baseRes) + 1;
+			}
+			myInfo->DIV *= 5;
+			__int64 __nI = 0;
+			func(*myInfo,__nI);
+			cs.lock();
+			numInterior += __nI;
+			while(numInterior >= next)
+			{
+				next += 1000000;
+				if (nsize==0)
+					std::cout << taskNum << ":" << next - 1000000 << endl;
+				else
+					std::cout << taskNum << ":" << next - 1000000 << "/" << nsize << endl;
+			}
+			cs.unlock();
+			myInfo->itrC++;
+			myInfo->itrD++;
 		}
-		itrA++;
-		itrB++;
-	}
-	return myInfo.numInterior;
+	});
+	delete [] __myInfo;
+	std::cout << "numInterior1:" << numInterior << endl;
+	std::cout << "next:" << next << endl;
+	std::cin.get();
+	return numInterior;
 }
 int main(int argc, char *argv[])
 {
@@ -942,6 +999,7 @@ int main(int argc, char *argv[])
 	Delaunay T;
 	triangulate(T,exterior);
 	std::cout<<"end triangulation"<<endl;
+	exterior.clear();
 	std::cout<<"T.number_of_vertices:"<<T.number_of_vertices()<<endl;
 	std::cout<<"number_of_finite_cells:"<<T.number_of_finite_cells()<<endl;
 	std::map<Delaunay::Cell_handle,__int64> index;
@@ -954,37 +1012,28 @@ int main(int argc, char *argv[])
 	
 	std::cout<<"initialize cells"<<endl;
 	init_cells(T,cells);
+	std::cout << "1" << endl;
 
 	
 	
 	//compute total number of interior points
-	__int64 size2=0;
 
-	__int64 size=computeInterior(data,eclipseTree,baseRes,[](info& myInfo){
+	__int64 size=computeInterior(data,eclipseTree,baseRes,[](info& myInfo,__int64& numInterior){
 		for(double ss=0.5;ss<myInfo.DIV;ss++)
 			{
 				for(auto particle=myInfo.particles.begin();particle!=myInfo.particles.end();particle++)
 				{
-					if( myInfo.numInterior>=myInfo.next)
-					{
-						std::cout<< myInfo.numInterior<<endl;
-						myInfo.next+=1000000;
-					}
-					myInfo.numInterior++;
+					++numInterior;
 				}
 			}
-});
+	}, 0);
 	std::cout<<"interior.size():"<< size<<endl;
-	size2=computeInterior2(mesh_infos,baseRes,[](info2& myInfo,__int64& numInterior,__int64& next){
-		if( numInterior>=next)
-		{
-			std::cout << numInterior<<endl;
-			next+=1000000;
-		}
-		numInterior++;
-	});
-	std::cout<<"interior2.size():"<< size2<<endl;
-	computeInterior2(mesh_infos, baseRes, [&size2, &cells, &index, &T](info2& myInfo, __int64& numInterior, __int64& next){
+	__int64 size2 = computeInterior2(mesh_infos, baseRes, [](info2& myInfo, __int64& numInterior){
+		++	numInterior;
+	},0);
+	std::cout << "interior.size():" << size << endl;
+	std::cout << "interior2.size():" << size2 << endl;
+	computeInterior2(mesh_infos, baseRes, [&cells, &index, &T](info2& myInfo, __int64& numInterior){
 		int li, lj;
 		Locate_type lt;
 		Cell_handle c;
@@ -1000,25 +1049,19 @@ int main(int argc, char *argv[])
 				myInfo.before=c;
 		}
 					
-		if( numInterior>=next)
-		{
-			std::cout << numInterior<<"/"<<size2 << endl;
-
-			next+=1000000;
-		}
-
-		numInterior++;
-	});
+		++numInterior;
+	}, size2);
 	for(auto tMS:meshStructures)
 	{
 		double t;
 		Mesh *mesh;
 		MeshStructure *MS;
 		boost::tie(t,mesh,MS)=tMS;
-		delete(MS);
-		delete(mesh);
+		delete MS;
+		delete mesh;
 	}
-	computeInterior(data,eclipseTree,baseRes,[&size,&cells,&index,&T](info& myInfo){
+	meshStructures.clear();
+	computeInterior(data, eclipseTree, baseRes, [&cells, &index, &T](info& myInfo, __int64& numInterior){
 
 			Cell_handle c;
 					
@@ -1076,7 +1119,7 @@ int main(int argc, char *argv[])
 					Point D1=(*myInfo.itrC)+tmp1;
 					Point D2=(*(myInfo.itrC+1))+tmp2;
 					Point D(D2.x()*s+D1.x()*(1-s),D2.y()*s+D1.y()*(1-s),D2.z()*s+D1.z()*(1-s));
-					if(myInfo.numInterior==0)
+					if(myInfo.before==NULL)
 						c = T.locate(D, lt,li,lj);
 					else
 						c=T.locate(D,lt,li,lj,myInfo.before);
@@ -1090,28 +1133,24 @@ int main(int argc, char *argv[])
 							myInfo.before=c;
 					}
 					
-					if( myInfo.numInterior>=myInfo.next)
-					{
-						std::cout<< myInfo.numInterior<<"/"<<size<<endl;
-						myInfo.next+=1000000;
-					}
-
-					myInfo.numInterior++;
+					++numInterior;
 				}
 			}
 	
-	});
+	}, size);
+
 	for(vector<Rad_branch>::iterator itr=data.begin();itr!=data.end();itr++)
 	{
 		Rad_branch a=*itr;
 		const branch* _branch=boost::get<1>(a);
 		delete(_branch);
 	}
+	data.clear();
 	for(vector<eclipses*>::iterator itr=eclipseTree.begin();itr!=eclipseTree.end();itr++)
 	{
 		delete(*itr);
 	}
-
+	eclipseTree.clear();
 	std::cout<<"start cell locate"<<endl;	
 	__int64 N=0;
 
@@ -1130,6 +1169,9 @@ int main(int argc, char *argv[])
 		if(cells[N]<1)bool_list[N]=false;
 
 	}
+	std::cout << "releasing cells" << endl;
+	delete [] cells;
+
 	std::cout<<"start refine"<<endl;
 	//int everything=1;
 	//while(everything>0){
@@ -1210,10 +1252,11 @@ int main(int argc, char *argv[])
 	std::cout<<endl;
 	std::cout<<cell_group.size()<<"groups found"<<endl;
 	count=0;
-	for(auto itr=cell_group.begin();itr!=cell_group.end();itr++)
+	parallel_for_each(cell_group.begin(), cell_group.end(), [&index,&bool_list,&count](std::list<Cell_handle> itr)
+	//for(auto itr=cell_group.begin();itr!=cell_group.end();itr++)
 	{
 		bool flag=false;
-		for(auto itr2=(*itr).begin();itr2!=(*itr).end();itr2++)
+		for(auto itr2=(itr).begin();itr2!=(itr).end();itr2++)
 		{
 			for(int i=0;i<4;i++)
 			{
@@ -1226,14 +1269,14 @@ int main(int argc, char *argv[])
 		}
 		if(!flag)
 		{
-			for(auto itr2=(*itr).begin();itr2!=(*itr).end();itr2++)
+			for(auto itr2=(itr).begin();itr2!=(itr).end();itr2++)
 			{
 				bool_list[index.find(*itr2)->second]=true;
 				//everything++;
 				count++;
 			}
 		}
-	}
+	});
 	std::cout<<count<<"cells recovered"<<endl;
 	
 	std::cout<<"erase irregular incident vertices"<<endl;
@@ -1243,6 +1286,7 @@ int main(int argc, char *argv[])
 		NN=T.number_of_vertices()/20;
 		if(NN==0)NN=1;
 		totalCount=0;
+		auto itr = T.vertices_begin();
 		for(auto itr=T.vertices_begin();itr!=T.vertices_end();itr++,N++)
 		{
 			std::list<Cell_handle> _cells; 
@@ -1250,34 +1294,40 @@ int main(int argc, char *argv[])
 			std::list<Cell_handle> cells2; 
 			std::list<Cell_handle> cells3; 
 			T.incident_cells(itr,std::back_inserter(_cells)); 
-			if(_cells.empty())continue;
-			for(auto itr=_cells.begin();itr!=_cells.end();itr++)
+			if (_cells.empty()){
+				continue;
+			}
+			for(auto _itr=_cells.begin();_itr!=_cells.end();_itr++)//_itr was itr, possibly cause an error.
 			{
-				map<Cell_handle,__int64>::iterator itr2=index.find(*itr);
+				map<Cell_handle,__int64>::iterator itr2=index.find(*_itr);
 				if(itr2!=index.end())
 				{
 					__int64 N=itr2->second;
 					if(bool_list[N])
 					{
-						cells.push_back(*itr);
+						cells.push_back(*_itr);
 					}
 				}
 			}
-			if(cells.empty())continue;
-			if(cells.size()==1)continue;
+			if (cells.empty()){
+				continue;
+			}
+			if (cells.size() == 1){
+				continue;
+			}
 			cells2.push_back(*cells.begin());
 			cells.pop_front();
 			while(true)
 			{
 				int count=0;
-				for(auto itr=cells.begin();itr!=cells.end();itr++)
+				for(auto _itr=cells.begin();_itr!=cells.end();_itr++)
 				{
 					for(int i=0;i<4;i++)
 					{
-						Cell_handle nei=(*itr)->neighbor(i);
+						Cell_handle nei=(*_itr)->neighbor(i);
 						if(std::find(cells2.begin(),cells2.end(),nei)!=cells2.end())
 						{
-							cells3.push_back(*itr);
+							cells3.push_back(*_itr);
 							count++;
 							break;
 						}
@@ -1430,8 +1480,38 @@ int main(int argc, char *argv[])
 		std::cout<<"refine:"<<TT<<", corrected:"<<num<<endl;
 		if(num==0)break;
 	}
-	
-	
+	std::cout << "look up isolated tets." << endl;
+	N = 0;
+	__int64 num = 0;
+	for (Delaunay::Finite_cells_iterator itr = T.finite_cells_begin(); itr != T.finite_cells_end(); itr++, N++)
+	{
+		if (bool_list[N] == true)
+		{
+			int count = 0;
+			for (int i = 0; i<4; i++)
+			{
+				Delaunay::Cell_handle _neighbor = itr->neighbor(i);
+				std::map<Delaunay::Cell_handle, __int64>::iterator it_N = index.find(_neighbor);
+				if (it_N != index.end())
+				{
+					if (!bool_list[it_N->second])count++;
+				}
+				else
+				{
+					count++;
+				}
+			}
+			if (count==4){
+				bool_list[N] = false;
+				//everything++;
+				num++;
+			}
+		}
+
+	}
+
+	std::cout << "found "<<num<<" isolated tets." << endl;
+
 	NN=T.number_of_finite_facets()/20;
 	if(NN<1)NN=1;
 	N=0;
@@ -1461,7 +1541,9 @@ int main(int argc, char *argv[])
 	}
 	
 	std::cout<<endl;
-	std::cout<<"T.number_of_finite_facets:"<<T.number_of_finite_facets()<<endl;
+	std::cout << "releasing bool_list" << endl;
+	delete [] bool_list;
+	std::cout << "T.number_of_finite_facets:" << T.number_of_finite_facets() << endl;
 	std::cout<<"start writing file"<<"["<<filename1<<"]"<<endl;
 	
 	N=0;
@@ -1474,7 +1556,7 @@ int main(int argc, char *argv[])
 	}*/
 	std::cout<<endl;
 	N=0;
-	int num=0;
+	num=0;
 	NN=facet_list.size()/20;
 	if(NN==0)NN=1;
 	
@@ -1517,8 +1599,6 @@ int main(int argc, char *argv[])
 	std::cout << "Press Return To Exit...";
 	std::cin.get();
 
-	delete(cells);
-	delete(bool_list);
 
 
 
