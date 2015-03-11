@@ -358,14 +358,15 @@ void generate_exterior2(boost::tuple<double,GeometryProcessing::MeshStructure*,s
 	GeometryProcessing::MeshStructure *MS;
 	std::map<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>> info;
 	boost::tie(t,MS,info)=tMS;
+	double tt[5]={-0.5,-0.25,0.0,0.25,0.5};
 	for(auto v:MS->vertices)
 	{
 		if(!v->isBoundary()){
 			Eigen::Vector3d P,N; //Position,Normal
 			boost::tie(P,N)=info.find(v)->second;
-			for(double sss=-0.5;sss<=0.5;sss+=1.0)
+			for(int i=0;i<5;i++)
 			{
-				Eigen::Vector3d Pc=P+sss*t*N;
+				Eigen::Vector3d Pc=P+tt[i]*t*N;
 				exterior.push_back(Point(Pc.x(),Pc.y(),Pc.z()));
 			}
 		}
@@ -377,42 +378,24 @@ void generate_exterior2(boost::tuple<double,GeometryProcessing::MeshStructure*,s
 			Eigen::Vector3d P1,P2,N1,N2; //Position,Normal
 			boost::tie(P1,N1)=info.find(e->P)->second;
 			boost::tie(P2,N2)=info.find(e->next->P)->second;
-			Eigen::Vector3d P1in=P1-0.5*t*N1;
-			Eigen::Vector3d P2in=P2-0.5*t*N2;
-			double L=(P2in-P1in).norm();
-			int LDIV=2;
-			if(L>baseRes*2.0)LDIV=(int)(L/baseRes);
-			auto T=P2in-P1in;
-			for(int ss=1;ss<LDIV;ss++)
+			for(int i=0;i<5;i++)
 			{
-				double sss=((double)ss)/((double)LDIV);
-				Eigen::Vector3d Pc=P1in+T*sss;
-				exterior.push_back(Point(Pc.x(),Pc.y(),Pc.z()));
+
+				Eigen::Vector3d P1in=P1+tt[i]*t*N1;
+				Eigen::Vector3d P2in=P2+tt[i]*t*N2;
+				auto T=P2in-P1in;
+				double L=T.norm();
+				int LDIV=2;
+				if(L>baseRes*2.0)LDIV=(int)(L/baseRes);
+				for(int ss=1;ss<LDIV;ss++)
+				{
+					double sss=((double)ss)/((double)LDIV);
+					Eigen::Vector3d Pc=P1in+T*sss;
+					exterior.push_back(Point(Pc.x(),Pc.y(),Pc.z()));
+				}
 			}
 		}
 	}
-	for(auto e:MS->edges())
-	{
-		if((!e->isBoundary())&&(!e->ifPairIsBoundary()))
-		{
-			Eigen::Vector3d P1,P2,N1,N2; //Position,Normal
-			boost::tie(P1,N1)=info.find(e->P)->second;
-			boost::tie(P2,N2)=info.find(e->next->P)->second;
-			Eigen::Vector3d P1out=P1+0.5*t*N1;
-			Eigen::Vector3d P2out=P2+0.5*t*N2;
-			double L=(P2out-P1out).norm();
-			int LDIV=2;
-			if(L>baseRes*2.0)LDIV=(int)(L/baseRes);
-			auto T=P2out-P1out;
-			for(int ss=1;ss<LDIV;ss++)
-			{
-				double sss=((double)ss)/((double)LDIV);
-				Eigen::Vector3d Pc=P1out+T*sss;
-				exterior.push_back(Point(Pc.x(),Pc.y(),Pc.z()));
-			}
-		}
-	}
-	double tt[5]={-0.5,-0.4,0.0,0.4,0.5};
 	for(auto f:MS->faces)
 	{
 		Eigen::Vector3d P1,P2,P3,N1,N2,N3,P1out,P1in,P2out,P2in,P3out,P3in,_P1,_P2,_P3; //Position,Normal
@@ -689,13 +672,25 @@ __int64 computeInterior2(vector<boost::tuple<double,GeometryProcessing::MeshStru
 {	
 	__int64 numInterior=0;
 	__int64 next=0;
+	double tt[5]={-0.5,-0.25,0.0,0.25,0.5};
+	double uv_ser[] = { 0.02, 0.05, 0.1, 0.22, 0.39, 0.61, 0.78, 0.9, 0.95, 0.98 };
+	double t_ser[40];
+	for(int i=0;i<4;i++)
+	{
+		for(int j=0;j<10;j++)
+		{
+			int index=i*10+j;
+			double val=tt[i]+(tt[i+1]-tt[i])*(((double)j+0.5)/10);
+			t_ser[index]=val;
+		}
+	}
 	for (auto tMS : mesh_infos)
 	{
 		double t;
 		GeometryProcessing::MeshStructure *MS;
 		std::map<vertex*,boost::tuple<Eigen::Vector3d,Eigen::Vector3d>> info;
 		boost::tie(t,MS,info)=tMS;
-		int TDIV=5;
+		int TDIV=40;
 		vector<boost::tuple<vector<face*>::iterator, vector<face*>::iterator, info2*, int>> tasks;
 		__int64 size= MS->faces.size();
 		int nTasks = 100;
@@ -718,9 +713,8 @@ __int64 computeInterior2(vector<boost::tuple<double,GeometryProcessing::MeshStru
 			}
 			tasks.push_back(boost::make_tuple<vector<face*>::iterator, vector<face*>::iterator, info2*,int>(first, second, &myInfo[i], i));
 		}
-		double uv_ser[] = { 0.005, 0.02, 0.1, 0.22, 0.39, 0.61, 0.78, 0.9, 0.98, 0.995 };
 		critical_section cs;
-		parallel_for_each(tasks.begin(), tasks.end(), [&baseRes, &TDIV, &t, &func, &info, &numInterior, &next, &nsize,&uv_ser,&cs](boost::tuple<vector<face*>::iterator, vector<face*>::iterator, info2*, int> tup)
+		parallel_for_each(tasks.begin(), tasks.end(), [&baseRes, &TDIV, &t, &func, &info, &numInterior, &next, &nsize,&uv_ser,&t_ser,&cs](boost::tuple<vector<face*>::iterator, vector<face*>::iterator, info2*, int> tup)
 		{
 			vector<face*>::iterator begin;
 			vector<face*>::iterator end;
@@ -756,33 +750,30 @@ __int64 computeInterior2(vector<boost::tuple<double,GeometryProcessing::MeshStru
 				__int64 nI = 0;
 				for (int ss = 0; ss <TDIV; ss++)
 				{
-					for (int tt = 0; tt < 10; tt++)
+					double sss = t_ser[ss];
+					_P1 = P1 + N1*t*sss;
+					_P2 = P2 + N2*t*sss;
+					_P3 = P3 + N3*t*sss;
+					//choose longest
+					//auto T12=_P2-_P1;
+					auto T23 = _P3 - _P2;
+					auto T13 = _P3 - _P1;
+					for (int v = 0; v < LDIV; v++)
 					{
-						double sss = (((double)ss/* - 0.5*/+uv_ser[tt])) / ((double)TDIV) - 0.5;
-						_P1 = P1 + N1*t*sss;
-						_P2 = P2 + N2*t*sss;
-						_P3 = P3 + N3*t*sss;
-						//choose longest
-						//auto T12=_P2-_P1;
-						auto T23 = _P3 - _P2;
-						auto T13 = _P3 - _P1;
-						for (int v = 0; v < LDIV; v++)
+						for (int vv = 0; vv < 10; vv++)
 						{
-							for (int vv = 0; vv < 10; vv++)
+							double sv = ((double)v /*- 0.5*/ + uv_ser[vv]) / ((double)LDIV);
+							auto __P1 = _P1 + T13*sv;
+							auto __P2 = _P2 + T23*sv;
+							for (int u = 0; u < LDIV - v; u++)
 							{
-								double sv = ((double)v /*- 0.5*/ + uv_ser[vv]) / ((double)LDIV);
-								auto __P1 = _P1 + T13*sv;
-								auto __P2 = _P2 + T23*sv;
-								for (int u = 0; u < LDIV - v; u++)
+								for (int uu = 0; uu < 10; uu++)
 								{
-									for (int uu = 0; uu < 10; uu++)
-									{
-										double su = ((double)u /*- 0.5*/ + uv_ser[uu]) / ((double)(LDIV - v));
-										auto T12 = __P2 - __P1;
-										auto p = __P1 + T12*su;
-										myInfo->p = Point(p.x(), p.y(), p.z());
-										func(*myInfo, nI);
-									}
+									double su = ((double)u /*- 0.5*/ + uv_ser[uu]) / ((double)(LDIV - v));
+									auto T12 = __P2 - __P1;
+									auto p = __P1 + T12*su;
+									myInfo->p = Point(p.x(), p.y(), p.z());
+									func(*myInfo, nI);
 								}
 							}
 						}
@@ -792,11 +783,11 @@ __int64 computeInterior2(vector<boost::tuple<double,GeometryProcessing::MeshStru
 				numInterior += nI;
 				while (numInterior >= next)
 				{
-					next += 1000000;
+					next += 10000000;
 					if (nsize == 0)
-						std::cout << taskNum << ":" << next - 1000000 << endl;
+						std::cout << taskNum << ":" << next - 10000000 << endl;
 					else
-						std::cout << taskNum << ":" << next - 1000000 << "/" << nsize << endl;
+						std::cout << taskNum << ":" << next - 10000000 << "/" << nsize << endl;
 
 				}
 				cs.unlock();
@@ -804,9 +795,9 @@ __int64 computeInterior2(vector<boost::tuple<double,GeometryProcessing::MeshStru
 		});
 		delete [] myInfo;
 	}
-	std::cout << "numInterior2:" << numInterior << endl;
-	std::cout << "next:" << next << endl;
-	std::cin.get();
+	//std::cout << "numInterior2:" << numInterior << endl;
+	//std::cout << "next:" << next << endl;
+	//std::cin.get();
 	return numInterior;
 }
 __int64 computeInterior(std::vector<Rad_branch> &data, std::vector<eclipses*> &eclipseTree, double baseRes, std::function<void(info&,__int64&)>func,__int64 nsize)
@@ -920,11 +911,11 @@ __int64 computeInterior(std::vector<Rad_branch> &data, std::vector<eclipses*> &e
 			numInterior += __nI;
 			while(numInterior >= next)
 			{
-				next += 1000000;
+				next += 10000000;
 				if (nsize==0)
-					std::cout << taskNum << ":" << next - 1000000 << endl;
+					std::cout << taskNum << ":" << next - 10000000 << endl;
 				else
-					std::cout << taskNum << ":" << next - 1000000 << "/" << nsize << endl;
+					std::cout << taskNum << ":" << next - 10000000 << "/" << nsize << endl;
 			}
 			cs.unlock();
 			myInfo->itrC++;
@@ -932,9 +923,9 @@ __int64 computeInterior(std::vector<Rad_branch> &data, std::vector<eclipses*> &e
 		}
 	});
 	delete [] __myInfo;
-	std::cout << "numInterior1:" << numInterior << endl;
-	std::cout << "next:" << next << endl;
-	std::cin.get();
+	//std::cout << "numInterior1:" << numInterior << endl;
+	//std::cout << "next:" << next << endl;
+	//std::cin.get();
 	return numInterior;
 }
 int main(int argc, char *argv[])
